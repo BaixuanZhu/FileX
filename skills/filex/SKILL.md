@@ -1,6 +1,6 @@
 ---
 name: filex
-description: Windows-aware file operations through the filex CLI — encoding-safe read/write/edit (GBK, GB18030, UTF-16, BOM), recoverable recycle-bin deletes, lock diagnosis for undeletable files, registry-backed environment variables, and journaled backups with one-command restore. Use whenever a file might not be UTF-8, a deletion must be recoverable, a file refuses to delete or is locked, environment variables must change persistently on Windows, or an edit needs an audit trail — even if the user never mentions encoding. For plain UTF-8 scratch files, built-in Read/Edit tools are fine.
+description: Encoding-aware, recoverable file operations on Windows via the filex CLI. Detects and preserves GBK, GB18030, UTF-16 and BOM encodings across read/write/edit/grep/tail, so non-UTF-8 files never turn into mojibake (乱码). Deletes go to the recycle bin by default, every change is journaled with backup and one-command restore, locked files can be diagnosed ("file in use", 删不掉), and environment variables can be set persistently in user or machine scope with change broadcast. Use it whenever a file might not be UTF-8, a deletion should be recoverable, rm fails because something holds the file, or PATH/registry env vars must change on Windows — even if the user never mentions encoding. For plain UTF-8 files prefer the agent's built-in Read/Edit tools.
 ---
 
 # FileX — Deterministic File Operations for AI Agents
