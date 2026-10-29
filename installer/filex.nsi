@@ -6,19 +6,20 @@
 !include "WinMessages.nsh"
 !insertmacro GetSize
 
+; Version information (passed via command line)
+!define /ifndef VERSION "0.0.0"
+
 ; Basic information
 Name "FileX"
 BrandingText "FileX - Deterministic File Operations for AI Agents"
-OutFile "filex-setup.exe"
+; Output name matches the release archive naming (filex-vX.Y.Z-windows-x64.zip)
+OutFile "filex-v${VERSION}-windows-x64.exe"
 
 ; User-level installation (no admin required)
 RequestExecutionLevel user
 
 ; Compression
 SetCompressor /SOLID lzma
-
-; Version information (passed via command line)
-!define /ifndef VERSION "0.0.0"
 
 ; Installation directory
 InstallDir "$LOCALAPPDATA\FileX"
@@ -43,6 +44,15 @@ InstallDirRegKey HKCU "Software\FileX" "InstallPath"
 
 ; Language
 !insertmacro MUI_LANGUAGE "English"
+
+; Version metadata shown in the installer's file properties
+; VIProductVersion requires four numeric components (X.X.X.X)
+VIProductVersion "${VERSION}.0"
+VIAddVersionKey /LANG=${LANG_ENGLISH} "ProductName" "FileX"
+VIAddVersionKey /LANG=${LANG_ENGLISH} "LegalCopyright" "Copyright (c) BaixuanZhu"
+VIAddVersionKey /LANG=${LANG_ENGLISH} "FileDescription" "FileX Installer"
+VIAddVersionKey /LANG=${LANG_ENGLISH} "FileVersion" "${VERSION}"
+VIAddVersionKey /LANG=${LANG_ENGLISH} "ProductVersion" "${VERSION}"
 
 ; Installer sections
 Section "Core Files" SecCore

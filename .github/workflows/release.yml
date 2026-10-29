@@ -203,9 +203,11 @@ jobs:
             Pop-Location
           }
           
-          if (Test-Path "installer\filex-setup.exe") {
-            $size = (Get-Item "installer\filex-setup.exe").Length / 1MB
-            Write-Host "✓ Installer built: installer\filex-setup.exe ($([math]::Round($size, 2)) MB)" -ForegroundColor Green
+          $installerName = "filex-v$version-windows-x64.exe"
+          
+          if (Test-Path "installer\$installerName") {
+            $size = (Get-Item "installer\$installerName").Length / 1MB
+            Write-Host "✓ Installer built: installer\$installerName ($([math]::Round($size, 2)) MB)" -ForegroundColor Green
           } else {
             Write-Error "Installer file not found"
             exit 1
@@ -215,7 +217,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: filex-installer-windows
-          path: installer\filex-setup.exe
+          path: installer\filex-v*-windows-x64.exe
           retention-days: 7
 
   test-installer:
@@ -232,13 +234,13 @@ jobs:
       - name: Silent install
         shell: pwsh
         run: |
-          $installer = Join-Path $PWD "filex-setup.exe"
-          if (-not (Test-Path $installer)) {
+          $installer = Get-ChildItem -Path $PWD -Filter "filex-v*-windows-x64.exe" | Select-Object -First 1
+          if (-not $installer) {
             Write-Error "Installer not found"
             exit 1
           }
           
-          $process = Start-Process -FilePath $installer -ArgumentList "/S" -Wait -PassThru
+          $process = Start-Process -FilePath $installer.FullName -ArgumentList "/S" -Wait -PassThru
           if ($process.ExitCode -ne 0) {
             Write-Error "Installer exited with code $($process.ExitCode)"
             exit 1
@@ -432,7 +434,7 @@ jobs:
             ## Installation
             
             ### Windows Installer (Recommended)
-            Download `filex-setup.exe` and run it. The installer will:
+            Download `filex-${{ steps.version.outputs.tag }}-windows-x64.exe` and run it. The installer will:
             - Install FileX to `%LOCALAPPDATA%\FileX`
             - Add FileX to your PATH
             - Create Start Menu shortcuts
@@ -458,7 +460,7 @@ jobs:
           files: |
             artifacts/*/*.zip
             artifacts/*/*.tar.gz
-            artifacts/filex-installer-windows/filex-setup.exe
+            artifacts/filex-installer-windows/*.exe
             checksums.txt
           draft: false
           prerelease: false
@@ -528,12 +530,13 @@ jobs:
       - name: Test installer
         shell: pwsh
         run: |
-          Write-Host "`n=== Testing filex-setup.exe ===" -ForegroundColor Cyan
+          Write-Host "`n=== Testing Windows installer ===" -ForegroundColor Cyan
           
           # Download installer from release
           $tag = "${{ github.ref_name }}"
-          $installerUrl = "https://github.com/BaixuanZhu/FileX/releases/download/$tag/filex-setup.exe"
-          $installerPath = Join-Path $env:RUNNER_TEMP "filex-setup.exe"
+          $installerName = "filex-$tag-windows-x64.exe"
+          $installerUrl = "https://github.com/BaixuanZhu/FileX/releases/download/$tag/$installerName"
+          $installerPath = Join-Path $env:RUNNER_TEMP $installerName
           
           Write-Host "Downloading installer from $installerUrl..."
           try {

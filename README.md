@@ -16,7 +16,7 @@ FileX is a CLI tool that wraps these operations in a deterministic, JSON-output 
 
 ### Windows Installer (Recommended)
 
-Download `filex-setup.exe` from [Releases](https://github.com/BaixuanZhu/FileX/releases) and run it.
+Download `filex-v<version>-windows-x64.exe` (e.g. `filex-v0.3.0-windows-x64.exe`) from [Releases](https://github.com/BaixuanZhu/FileX/releases) and run it.
 
 The installer will:
 - Install FileX to `%LOCALAPPDATA%\FileX`
@@ -25,12 +25,12 @@ The installer will:
 
 **Silent installation:**
 ```cmd
-filex-setup.exe /S
+filex-v0.3.0-windows-x64.exe /S
 ```
 
 **Custom directory:**
 ```cmd
-filex-setup.exe /D=D:\Tools\FileX
+filex-v0.3.0-windows-x64.exe /D=D:\Tools\FileX
 ```
 
 ### PowerShell (Windows, alternative)
