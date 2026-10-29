@@ -3,7 +3,7 @@
   "name": "filex-m4",
   "title": "M4: policy + journal + recycle-bin rm",
   "description": "Implement policy (whitelist, deny rules, symlink escape prevention), journal (JSONL audit log, sensitive value masking), recycle-bin rm. Deliverable: out-of-bounds paths return E_DENIED; journal records full audit chain.",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": null,

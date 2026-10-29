@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"filex/internal/errs"
+	"filex/internal/journal"
 	"filex/internal/winenv"
 )
 
@@ -154,6 +155,8 @@ func EnvSet(p EnvSetParams) (*EnvSetResult, *errs.Error) {
 		}
 	}
 
+	_ = journal.Record(journal.MaskEnvEntry("env_set", p.Scope.String(), p.Name, p.Value))
+
 	return &EnvSetResult{
 		Name:      p.Name,
 		Value:     p.Value,
@@ -268,6 +271,12 @@ func EnvUnset(scope winenv.Scope, name string) (*EnvUnsetResult, *errs.Error) {
 	}
 
 	_ = winenv.NotifyEnvironmentChange()
+
+	_ = journal.Record(journal.Entry{
+		Op:      "env_unset",
+		Scope:   scope.String(),
+		EnvName: name,
+	})
 
 	return &EnvUnsetResult{Name: name, Scope: scope.String()}, nil
 }

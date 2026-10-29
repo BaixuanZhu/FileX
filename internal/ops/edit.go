@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"os"
+	"path/filepath"
 
 	"filex/internal/encoding"
 	"filex/internal/errs"
@@ -29,6 +30,10 @@ type EditResult struct {
 }
 
 func Edit(p EditParams) (*EditResult, *errs.Error) {
+	if pErr := checkPolicy(p.Path); pErr != nil {
+		return nil, pErr
+	}
+
 	data, err := os.ReadFile(p.Path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -96,6 +101,9 @@ func Edit(p EditParams) (*EditResult, *errs.Error) {
 	if err := os.WriteFile(p.Path, newData, 0644); err != nil {
 		return nil, errs.Newf(errs.EIO, "write failed: %v", err)
 	}
+
+	absPath, _ := filepath.Abs(p.Path)
+	recordJournal("edit", absPath, "", result.SHA256Before, result.SHA256After)
 
 	return result, nil
 }

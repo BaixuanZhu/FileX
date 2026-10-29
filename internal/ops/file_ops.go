@@ -26,6 +26,10 @@ type StatResult struct {
 }
 
 func Stat(path string) (*StatResult, *errs.Error) {
+	if pErr := checkPolicy(path); pErr != nil {
+		return nil, pErr
+	}
+
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, errs.Newf(errs.EIO, "resolve path failed: %v", err)
@@ -71,6 +75,10 @@ func Stat(path string) (*StatResult, *errs.Error) {
 type LockResult = winfs.LockStatus
 
 func Lock(path string) (*LockResult, *errs.Error) {
+	if pErr := checkPolicy(path); pErr != nil {
+		return nil, pErr
+	}
+
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, errs.Newf(errs.EIO, "resolve path failed: %v", err)
@@ -98,6 +106,10 @@ type LsEntry struct {
 }
 
 func Ls(path string, depth int) ([]LsEntry, *errs.Error) {
+	if pErr := checkPolicy(path); pErr != nil {
+		return nil, pErr
+	}
+
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, errs.Newf(errs.EIO, "resolve path failed: %v", err)
@@ -165,6 +177,10 @@ type HashResult struct {
 }
 
 func Hash(path string) (*HashResult, *errs.Error) {
+	if pErr := checkPolicy(path); pErr != nil {
+		return nil, pErr
+	}
+
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, errs.Newf(errs.EIO, "resolve path failed: %v", err)
@@ -210,6 +226,10 @@ type WriteResult struct {
 }
 
 func Write(p WriteParams) (*WriteResult, *errs.Error) {
+	if pErr := checkPolicy(p.Path); pErr != nil {
+		return nil, pErr
+	}
+
 	absPath, err := filepath.Abs(p.Path)
 	if err != nil {
 		return nil, errs.Newf(errs.EIO, "resolve path failed: %v", err)
@@ -281,6 +301,8 @@ func Write(p WriteParams) (*WriteResult, *errs.Error) {
 	result.SHA256After = hashAfter
 	result.Size = int64(len(data))
 
+	recordJournal("write", absPath, result.Backup, result.SHA256Before, result.SHA256After)
+
 	return result, nil
 }
 
@@ -298,6 +320,10 @@ type RmResult struct {
 }
 
 func Rm(p RmParams) (*RmResult, *errs.Error) {
+	if pErr := checkPolicy(p.Path); pErr != nil {
+		return nil, pErr
+	}
+
 	absPath, err := filepath.Abs(p.Path)
 	if err != nil {
 		return nil, errs.Newf(errs.EIO, "resolve path failed: %v", err)
@@ -315,6 +341,7 @@ func Rm(p RmParams) (*RmResult, *errs.Error) {
 		}
 		result.Deleted = true
 		result.Purged = true
+		recordJournal("rm", absPath, "", "", "")
 		return result, nil
 	}
 
@@ -342,6 +369,8 @@ func Rm(p RmParams) (*RmResult, *errs.Error) {
 
 	result.Deleted = true
 	result.Trash = trashPath
+
+	recordJournal("rm", absPath, "", "", "")
 
 	return result, nil
 }
