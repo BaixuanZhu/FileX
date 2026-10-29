@@ -200,7 +200,7 @@ filex upgrade --cleanup
 
 ## Command Reference
 
-See [docs/SKILL.md](docs/SKILL.md) for complete command reference with examples.
+See the [filex agent skill](skills/filex/SKILL.md) for complete command reference with examples.
 
 ### File Operations
 
@@ -333,6 +333,20 @@ filex mcp install --client=cursor --profile=rw
 
 Profile enforcement ensures `ro` clients cannot execute write operations.
 
+## Agent Skill
+
+Teach your coding agent when to prefer filex over its built-in tools
+(encoding traps, recoverable deletes, locked files, env scopes) with the
+distributable skill at [skills/filex/SKILL.md](skills/filex/SKILL.md):
+
+```bash
+# skills.sh installer — detects 70+ agents and picks the right directory
+npx skills add BaixuanZhu/FileX
+```
+
+Or copy the `skills/filex/` folder into your agent's skills directory
+(`~/.agents/skills/`, `~/.zcode/skills/`, or `~/.claude/skills/`).
+
 ## Output Format
 
 All commands output JSON envelope:
@@ -401,8 +415,9 @@ filex/
 ├── scripts/
 │   ├── filex.bat        # Windows wrapper script
 │   └── filex.sh         # Unix wrapper script
-├── docs/
-│   └── SKILL.md         # Model usage guide (<=60 lines)
+├── skills/
+│   └── filex/
+│       └── SKILL.md     # Distributable agent skill
 ├── install.ps1          # Windows installation script
 └── install.sh           # Unix installation script
 ```
