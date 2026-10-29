@@ -3,7 +3,7 @@
   "name": "filex-m7",
   "title": "M7: packaging, SKILL.md, cross-model evaluation",
   "description": "Write SKILL.md (<=60 lines), README.md, package filex.exe with version injection, optional cross-model evaluation. Deliverable: filex.exe runs standalone; SKILL.md covers all commands.",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": null,
