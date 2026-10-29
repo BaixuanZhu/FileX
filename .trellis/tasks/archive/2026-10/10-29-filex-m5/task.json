@@ -3,7 +3,7 @@
   "name": "filex-m5",
   "title": "M5: large file handling (tail, read --offset/--limit, grep --stream)",
   "description": "Implement filex tail (encoding-aware, --follow), read --offset/--limit (line-level paging), grep --stream (line-by-line decoding). Deliverable: 100MB file tail <1s; grep --stream memory <50MB; edit rejects >100MB with E_TOO_LARGE.",
-  "status": "done",
+  "status": "completed",
   "dev_type": null,
   "scope": null,
   "package": null,
