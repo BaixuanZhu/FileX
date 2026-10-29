@@ -17,7 +17,7 @@
 **File**: `read` `write` `edit` `grep` `stat` `lock` `ls` `hash` `rm` `tail`  
 **Env**: `env get|set|list|unset` (scopes: process|user|machine)  
 **Backup**: `backup list|restore|prune`  
-**MCP**: `mcp serve [--profile=ro|rw]` `mcp install --client=claude|cursor|vscode`  
+**MCP**: `mcp serve [--profile=ro|rw]` `mcp install --client=claude|claude-code|codex|cursor|vscode|windsurf|zcode [--profile=ro|rw]`  
 **Upgrade**: `upgrade [--check] [--yes]`
 
 ## Key Flags

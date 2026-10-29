@@ -297,14 +297,32 @@ filex mcp serve --profile=ro
 # Claude Desktop
 filex mcp install --client=claude
 
+# Claude Code (CLI, user scope)
+filex mcp install --client=claude-code
+
+# Codex CLI
+filex mcp install --client=codex
+
 # Cursor
 filex mcp install --client=cursor
 
-# VS Code
+# VS Code (user-level mcp.json)
 filex mcp install --client=vscode
+
+# Windsurf
+filex mcp install --client=windsurf
+
+# ZCode
+filex mcp install --client=zcode
 ```
 
-This writes the MCP configuration to the client's config directory.
+This writes the MCP configuration to the client's config directory. Add
+`--profile=rw` to register the read-write profile instead of the default
+read-only one:
+
+```bash
+filex mcp install --client=cursor --profile=rw
+```
 
 ### Available MCP tools
 

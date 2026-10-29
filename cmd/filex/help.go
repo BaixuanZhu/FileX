@@ -162,10 +162,12 @@ func getCommands() []Command {
 		{
 			Verb:        "mcp",
 			Description: "MCP server",
-			Args:        []string{"<action>"},
+			Args:        []string{"<serve|install>"},
 			Flags: []Flag{
 				{Name: "serve", Description: "Start MCP stdio server"},
-				{Name: "install", Description: "Install MCP config"},
+				{Name: "install", Description: "Install MCP config for an AI client"},
+				{Name: "--client", Description: "Client: claude|claude-code|codex|cursor|vscode|windsurf|zcode"},
+				{Name: "--profile", Description: "Tool profile: ro|rw (default ro)"},
 			},
 			Stage: "M6",
 		},
