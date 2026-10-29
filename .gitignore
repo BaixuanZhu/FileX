@@ -30,3 +30,7 @@ __pycache__/
 
 # Trellis runtime
 .trellis/.runtime/
+
+# Tool-specific configs
+.qoder/
+.zcode/
