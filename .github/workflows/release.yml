@@ -66,7 +66,9 @@ jobs:
           mkdir -p "$ARCHIVE_DIR/docs"
           cp ${{ matrix.binary_name }} "$ARCHIVE_DIR/"
           cp README.md "$ARCHIVE_DIR/"
-          cp LICENSE "$ARCHIVE_DIR/"
+          if [ -f "LICENSE" ]; then
+            cp LICENSE "$ARCHIVE_DIR/"
+          fi
           if [ -d "docs" ]; then
             cp -r docs/* "$ARCHIVE_DIR/docs/"
           fi
