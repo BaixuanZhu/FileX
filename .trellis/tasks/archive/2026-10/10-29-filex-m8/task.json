@@ -3,7 +3,7 @@
   "name": "filex-m8",
   "title": "M8: self-upgrade, auto-release, installation",
   "description": "Add self-upgrade command (from GitHub Releases), auto-release workflow (tag-triggered), and installation methods (PowerShell script, Go install). Deliverable: filex upgrade checks and installs latest version; push tag v* auto-publishes to GitHub Releases; users can install via PowerShell one-liner or go install.",
-  "status": "done",
+  "status": "completed",
   "dev_type": null,
   "scope": null,
   "package": null,
