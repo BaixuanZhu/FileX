@@ -221,102 +221,45 @@ Function StrStr
 FunctionEnd
 
 ; Uninstaller functions
+; Removes the install dir whether it sits at the start, middle, or end of
+; PATH, or is PATH's only entry: replace ";X", then "X;", then "X"
 Function un.RemoveFromUserPath
   Push $0
-  Push $1
-  Push $2
   
   ReadRegStr $0 HKCU "Environment" "PATH"
+  StrCmp $0 "" Done
   
-  ; Remove various forms of the path
-  Push "$INSTDIR"
-  Push "$0"
-  Call un.StrStr
-  Pop $1
-  StrCmp $1 "" 0 RemoveWithBefore
-  
-  Push "$INSTDIR"
-  Push "$0;"
-  Call un.StrStr
-  Pop $1
-  StrCmp $1 "" 0 RemoveWithAfter
-  
-  Push "$INSTDIR"
-  Push "$0"
-  Call un.StrStr
-  Pop $1
-  StrCmp $1 "" Done
-  
-  Push "$0"
-  Push "$INSTDIR"
-  Push ""
-  Call un.StrRep
-  Pop $0
-  Goto WriteNewPath
-  
-  RemoveWithBefore:
-  Push "$0"
+  Push $0
   Push ";$INSTDIR"
   Push ""
   Call un.StrRep
   Pop $0
-  Goto WriteNewPath
   
-  RemoveWithAfter:
-  Push "$0"
+  Push $0
   Push "$INSTDIR;"
   Push ""
   Call un.StrRep
   Pop $0
   
-  WriteNewPath:
+  Push $0
+  Push "$INSTDIR"
+  Push ""
+  Call un.StrRep
+  Pop $0
+  
+  StrCmp $0 "" 0 WritePath
+  ; Avoid leaving an empty PATH value behind when it had no other entries
+  DeleteRegValue HKCU "Environment" "PATH"
+  Goto Broadcast
+  
+  WritePath:
   WriteRegExpandStr HKCU "Environment" "PATH" $0
+  
+  Broadcast:
   SendMessage ${HWND_BROADCAST} ${WM_SETTINGCHANGE} 0 "STR:Environment" /TIMEOUT=5000
   
   Done:
-  Pop $2
-  Pop $1
   Pop $0
-FunctionEnd
-
-Function un.StrStr
-  Exch $R0
-  Exch
-  Exch $R1
-  Push $R2
-  Push $R3
-  Push $R4
-  Push $R5
-  
-  StrLen $R2 $R1
-  StrLen $R3 $R0
-  
-  IntCmp $R2 0 0 0 StrStrNotFound
-  IntCmp $R3 0 StrStrNotFound StrStrNotFound 0
-  
-  StrCpy $R4 0
-  
-  StrStrLoop:
-  IntCmp $R4 $R3 StrStrNotFound StrStrNotFound 0
-  StrCpy $R5 $R0 $R2 $R4
-  StrCmp $R5 $R1 StrStrFound 0
-  IntOp $R4 $R4 + 1
-  Goto StrStrLoop
-  
-  StrStrFound:
-  StrCpy $R0 $R0 "" $R4
-  Goto StrStrDone
-  
-  StrStrNotFound:
-  StrCpy $R0 ""
-  
-  StrStrDone:
-  Pop $R5
-  Pop $R4
-  Pop $R3
-  Pop $R2
-  Pop $R1
-  Exch $R0
 FunctionEnd
 
 Function un.StrRep

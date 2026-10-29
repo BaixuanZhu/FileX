@@ -467,7 +467,6 @@ jobs:
     name: Test Windows Installation
     needs: create-release
     runs-on: windows-latest
-    if: always()
     
     steps:
       - name: Checkout code
