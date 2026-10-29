@@ -86,10 +86,11 @@ function Install-FileX {
     $version = $release.tag_name
     Write-Info "Latest version: $version"
     
-    # Find the binary asset
-    $asset = $release.assets | Where-Object { $_.name -eq $BinaryName }
+    # Find the binary asset (versioned name: filex-v0.1.1.exe)
+    $versionedBinaryName = "filex-$version.exe"
+    $asset = $release.assets | Where-Object { $_.name -eq $versionedBinaryName }
     if (-not $asset) {
-        Write-Error "Binary asset '$BinaryName' not found in release"
+        Write-Error "Binary asset '$versionedBinaryName' not found in release"
         exit 1
     }
     
@@ -101,7 +102,7 @@ function Install-FileX {
         Write-Info "Created install directory: $InstallDir"
     }
     
-    # Download binary
+    # Download binary (save as filex.exe for consistency)
     $tempFile = Join-Path $env:TEMP $BinaryName
     if (-not (Download-File -Url $downloadUrl -OutputPath $tempFile)) {
         exit 1

@@ -40,11 +40,15 @@ jobs:
         run: |
           COMMIT=${GITHUB_SHA::8}
           go build -ldflags "-X filex/internal/buildinfo.Version=${{ steps.version.outputs.version }} -X filex/internal/buildinfo.Commit=$COMMIT -X filex/internal/buildinfo.BuildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o filex.exe ./cmd/filex
+          
+          # Rename with version number
+          cp filex.exe filex-${{ steps.version.outputs.tag }}.exe
+          ls -lh filex*.exe
 
       - name: Generate checksums
         shell: bash
         run: |
-          sha256sum filex.exe > checksums.txt
+          sha256sum filex-${{ steps.version.outputs.tag }}.exe > checksums.txt
           cat checksums.txt
 
       - name: Generate changelog
@@ -91,14 +95,14 @@ jobs:
             ```
             
             ### Manual download
-            Download `filex.exe` below and add to your PATH.
+            Download `filex-${{ steps.version.outputs.tag }}.exe` below and add to your PATH.
             
             ## Checksums
             ```
             ${{ steps.checksum.outputs.content }}
             ```
           files: |
-            filex.exe
+            filex-${{ steps.version.outputs.tag }}.exe
             checksums.txt
           draft: false
           prerelease: false
@@ -170,6 +174,6 @@ jobs:
         with:
           name: filex-${{ steps.version.outputs.tag }}
           path: |
-            filex.exe
+            filex-${{ steps.version.outputs.tag }}.exe
             checksums.txt
           retention-days: 30
