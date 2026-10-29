@@ -104,6 +104,66 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Test installation script
+        shell: pwsh
+        run: |
+          Write-Host "=== Testing install.ps1 ===" -ForegroundColor Cyan
+          
+          # Wait for release to propagate
+          Write-Host "Waiting for release to propagate..."
+          Start-Sleep -Seconds 15
+          
+          # Set up test install directory
+          $testInstallDir = Join-Path $env:RUNNER_TEMP "FileX-Test-Install"
+          $env:LOCALAPPDATA = $testInstallDir
+          
+          Write-Host "Test install directory: $testInstallDir"
+          
+          # Run install script
+          try {
+            .\install.ps1
+            Write-Host "✓ Install script completed" -ForegroundColor Green
+          }
+          catch {
+            Write-Error "✗ Install script failed: $_"
+            exit 1
+          }
+          
+          # Verify installation
+          $installedExe = Join-Path $testInstallDir "FileX\filex.exe"
+          if (-not (Test-Path $installedExe)) {
+            Write-Error "✗ Installed binary not found at $installedExe"
+            exit 1
+          }
+          Write-Host "✓ Binary installed to $installedExe" -ForegroundColor Green
+          
+          # Test binary execution
+          try {
+            $versionOutput = & $installedExe version 2>&1 | ConvertFrom-Json
+            if (-not $versionOutput.ok) {
+              Write-Error "✗ Binary execution failed"
+              exit 1
+            }
+            Write-Host "✓ Binary version: $($versionOutput.data.version)" -ForegroundColor Green
+          }
+          catch {
+            Write-Error "✗ Failed to execute binary: $_"
+            exit 1
+          }
+          
+          # Verify PATH was updated
+          $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+          if ($userPath -notlike "*$testInstallDir\FileX*") {
+            Write-Warning "⚠ Install directory not in PATH (may be expected in CI)"
+          }
+          else {
+            Write-Host "✓ Install directory added to PATH" -ForegroundColor Green
+          }
+          
+          Write-Host "`n=== Installation test passed ===" -ForegroundColor Green
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
