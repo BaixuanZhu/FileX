@@ -3,7 +3,7 @@
   "name": "filex-m3",
   "title": "M3: env vars (3 scopes, REG_EXPAND_SZ, broadcast, masking)",
   "description": "Port envward registry/broadcast/detect modules to internal/winenv, implement filex env get/set/list/unset. Deliverable: env set --scope=user visible in new cmd; REG_EXPAND_SZ expands correctly.",
-  "status": "done",
+  "status": "completed",
   "dev_type": null,
   "scope": null,
   "package": null,
