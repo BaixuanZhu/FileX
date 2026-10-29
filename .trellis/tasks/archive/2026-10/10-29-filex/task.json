@@ -3,7 +3,7 @@
   "name": "filex",
   "title": "filex: deterministic file & env operation layer for AI agents",
   "description": "Build a Go CLI + MCP server that provides deterministic file operations (encoding-aware read/write/edit, atomic writes, lock detection, backup) and environment variable management (registry read/write, WM_SETTINGCHANGE broadcast, PATH operations) for AI agents on Windows.",
-  "status": "planning",
+  "status": "completed",
   "dev_type": null,
   "scope": null,
   "package": null,
@@ -11,7 +11,7 @@
   "creator": "zz",
   "assignee": "zz",
   "createdAt": "2026-10-29",
-  "completedAt": null,
+  "completedAt": "2026-10-29",
   "branch": null,
   "base_branch": "main",
   "worktree_path": null,
@@ -26,7 +26,8 @@
     "10-29-filex-m4",
     "10-29-filex-m5",
     "10-29-filex-m6",
-    "10-29-filex-m7"
+    "10-29-filex-m7",
+    "10-29-filex-m8"
   ],
   "parent": null,
   "relatedFiles": [],
