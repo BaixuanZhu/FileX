@@ -3,7 +3,7 @@
   "name": "filex-m0",
   "title": "M0: repo skeleton, ops interface, error codes, JSON envelope, help --json",
   "description": "Initialize Go module, directory structure, error code table, JSON envelope, verb dispatch, help --json, version. Deliverable: go build passes, filex help --json outputs valid JSON.",
-  "status": "done",
+  "status": "completed",
   "dev_type": null,
   "scope": null,
   "package": null,
