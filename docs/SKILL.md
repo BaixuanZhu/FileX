@@ -17,7 +17,8 @@
 **File**: `read` `write` `edit` `grep` `stat` `lock` `ls` `hash` `rm` `tail`  
 **Env**: `env get|set|list|unset` (scopes: process|user|machine)  
 **Backup**: `backup list|restore|prune`  
-**MCP**: `mcp serve [--profile=ro|rw]` `mcp install --client=claude|cursor|vscode`
+**MCP**: `mcp serve [--profile=ro|rw]` `mcp install --client=claude|cursor|vscode`  
+**Upgrade**: `upgrade [--check] [--yes]`
 
 ## Key Flags
 
@@ -44,6 +45,8 @@ filex tail app.log --lines=50
 
 # Set environment variable (Windows, user scope)
 filex env set NODE_ENV production --scope=user
+# Upgrade to latest version
+filex upgrade --yes
 ```
 
 ## Security
@@ -54,7 +57,4 @@ filex env set NODE_ENV production --scope=user
 - **MCP profiles**: `ro` (default) = read-only; `rw` = all tools
 
 ## Output Format
-
-All output is JSON: `{"success": true/false, "data": {...}}` or `{"success": false, "error": {"code": "...", "message": "...", "hint": "..."}}`
-
-Exit codes: 0=success, 1=operation error, 2=usage error
+All output is JSON: `{"success": true/false, "data": {...}}` or `{"success": false, "error": {"code": "...", "message": "...", "hint": "..."}}`. Exit codes: 0=success, 1=operation error, 2=usage error.

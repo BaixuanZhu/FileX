@@ -169,6 +169,15 @@ func getCommands() []Command {
 			},
 			Stage: "M6",
 		},
+		{
+			Verb:        "upgrade",
+			Description: "Upgrade to latest version",
+			Flags: []Flag{
+				{Name: "--check", Description: "Only check, don't upgrade"},
+				{Name: "--yes", Description: "Skip confirmation prompt"},
+			},
+			Stage: "M8",
+		},
 	}
 }
 

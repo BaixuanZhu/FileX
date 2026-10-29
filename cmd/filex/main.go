@@ -49,6 +49,8 @@ func main() {
 		err = runEnv(os.Args[2:])
 	case "mcp":
 		err = runMCP(os.Args[2:])
+	case "upgrade":
+		err = runUpgrade(os.Args[2:])
 	default:
 		fmt.Fprintf(os.Stderr, "unknown verb: %s\n", verb)
 		printUsage()
@@ -81,6 +83,7 @@ func printUsage() {
 	fmt.Fprintln(os.Stderr, "  env       Environment variables (get/set/list/unset)")
 	fmt.Fprintln(os.Stderr, "  backup    Backup management (list/restore/prune)")
 	fmt.Fprintln(os.Stderr, "  mcp       MCP server (serve/install)")
+	fmt.Fprintln(os.Stderr, "  upgrade   Upgrade to latest version")
 }
 
 func runVersion() *errs.Error {

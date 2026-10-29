@@ -14,17 +14,25 @@ FileX is a CLI tool that wraps these operations in a deterministic, JSON-output 
 
 ## Installation
 
-### From source (requires Go 1.26+)
+### PowerShell (recommended)
+
+```powershell
+irm https://raw.githubusercontent.com/BaixuanZhu/FileX/main/install.ps1 | iex
+```
+
+This downloads the latest release to `%LOCALAPPDATA%\FileX\` and adds it to your PATH.
+
+### Go install (requires Go 1.26+)
 
 ```bash
-go install github.com/lowlighter/filex/cmd/filex@latest
+go install github.com/BaixuanZhu/FileX/cmd/filex@latest
 ```
 
 ### Pre-built binary
 
-Download `filex.exe` from [Releases](https://github.com/lowlighter/filex/releases) and add to your PATH.
+Download `filex.exe` from [Releases](https://github.com/BaixuanZhu/FileX/releases) and add to your PATH.
 
-### Build with version injection
+### Build from source
 
 ```bash
 # Windows (PowerShell)
@@ -105,6 +113,21 @@ filex tail app.log --lines=50
 filex grep "ERROR" --paths="*.log" --stream --max=100
 ```
 
+### Self-upgrade
+
+```bash
+# Check if update is available
+filex upgrade --check
+
+# Upgrade to latest version
+filex upgrade
+
+# Upgrade without confirmation prompt
+filex upgrade --yes
+```
+
+FileX checks [GitHub Releases](https://github.com/BaixuanZhu/FileX/releases) for the latest version, downloads it, verifies the checksum, and replaces the current executable. If the upgrade fails, it automatically restores the previous version.
+
 ## Command Reference
 
 See [docs/SKILL.md](docs/SKILL.md) for complete command reference with examples.
@@ -142,6 +165,7 @@ See [docs/SKILL.md](docs/SKILL.md) for complete command reference with examples.
 | `backup prune` | Clean old backups |
 | `mcp serve` | Start MCP stdio server |
 | `mcp install` | Install MCP config for client |
+| `upgrade` | Upgrade to latest version |
 
 ## Security Model
 
