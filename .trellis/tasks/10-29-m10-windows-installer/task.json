@@ -21,6 +21,6 @@
   "children": [],
   "parent": null,
   "relatedFiles": [],
-  "notes": "v0.3.0 released with installer; CI test-installer gate green (silent install/verify/uninstall). Local manual test by user pending. Installer asset renamed to filex-v<version>-windows-x64.exe (plus exe version metadata) after v0.3.0; takes effect from the next release.",
+  "notes": "v0.3.0 released with installer; CI test-installer gate green (silent install/verify/uninstall). Local manual test by user pending. Installer asset renamed to filex-v<version>-windows-x64.exe (plus exe version metadata) after v0.3.0; takes effect from the next release. Explicit /D= now overrides the previous install location (CI relocation test added); takes effect from the next release.",
   "meta": {}
 }

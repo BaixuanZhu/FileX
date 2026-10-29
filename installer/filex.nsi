@@ -5,6 +5,7 @@
 !include "FileFunc.nsh"
 !include "WinMessages.nsh"
 !insertmacro GetSize
+!insertmacro GetOptions
 
 ; Version information (passed via command line)
 !define /ifndef VERSION "0.0.0"
@@ -316,6 +317,15 @@ FunctionEnd
 
 ; Installer initialization
 Function .onInit
+  ; An explicit /D= on the command line is a deliberate location choice and
+  ; wins over the previous installation's directory
+  Push $R0
+  ClearErrors
+  ${GetOptions} "$CMDLINE" "/D=" $R0
+  Pop $R0
+  IfErrors +2
+  Goto NoExisting
+  
   ; Check for existing installation
   ReadRegStr $0 HKCU "Software\FileX" "InstallPath"
   StrCmp $0 "" NoExisting

@@ -33,6 +33,10 @@ filex-v0.3.0-windows-x64.exe /S
 filex-v0.3.0-windows-x64.exe /D=D:\Tools\FileX
 ```
 
+**Moving an existing install:** an explicit `/D=` overrides the previous
+location, but the old directory and its PATH entry are left behind —
+uninstall first for a clean move.
+
 ### PowerShell (Windows, alternative)
 
 ```powershell

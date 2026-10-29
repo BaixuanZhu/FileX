@@ -306,11 +306,50 @@ jobs:
             exit 1
           }
 
+      - name: Relocate install via /D=
+        shell: pwsh
+        run: |
+          # An explicit /D= must override the previous install location
+          $installer = Get-ChildItem -Path $PWD -Filter "filex-v*-windows-x64.exe" | Select-Object -First 1
+          $relocateDir = Join-Path $env:RUNNER_TEMP "FileX-Relocated"
+          
+          $process = Start-Process -FilePath $installer.FullName -ArgumentList "/S", "/D=$relocateDir" -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            Write-Error "Relocation install exited with code $($process.ExitCode)"
+            exit 1
+          }
+          
+          $failures = @()
+          
+          if (Test-Path "$relocateDir\filex.bat") {
+            Write-Host "OK: relocated wrapper at $relocateDir\filex.bat"
+          } else {
+            Write-Host "MISSING: $relocateDir\filex.bat"
+            $failures += "relocated wrapper"
+          }
+          
+          $installPath = (Get-ItemProperty -Path "HKCU:\Software\FileX" -ErrorAction SilentlyContinue).InstallPath
+          if ($installPath -eq $relocateDir) {
+            Write-Host "OK: registry InstallPath = $installPath"
+          } else {
+            Write-Host "WRONG: registry InstallPath = $installPath (expected $relocateDir)"
+            $failures += "registry InstallPath"
+          }
+          
+          if ($failures.Count -gt 0) {
+            Write-Error "Relocation verification failed: $($failures -join ', ')"
+            exit 1
+          }
+
       - name: Silent uninstall
         shell: pwsh
         run: |
-          $installDir = Join-Path $env:LOCALAPPDATA "FileX"
-          $uninstaller = Join-Path $installDir "uninstaller.exe"
+          $installPath = (Get-ItemProperty -Path "HKCU:\Software\FileX" -ErrorAction SilentlyContinue).InstallPath
+          if (-not $installPath) {
+            Write-Error "No installed FileX found"
+            exit 1
+          }
+          $uninstaller = Join-Path $installPath "uninstaller.exe"
           
           $process = Start-Process -FilePath $uninstaller -ArgumentList "/S" -Wait -PassThru
           if ($process.ExitCode -ne 0) {
@@ -322,19 +361,19 @@ jobs:
       - name: Verify uninstallation
         shell: pwsh
         run: |
-          $installDir = Join-Path $env:LOCALAPPDATA "FileX"
+          $relocateDir = Join-Path $env:RUNNER_TEMP "FileX-Relocated"
           $failures = @()
           
-          if (Test-Path $installDir) {
-            Write-Host "LEFTOVER: $installDir still exists"
+          if (Test-Path $relocateDir) {
+            Write-Host "LEFTOVER: $relocateDir still exists"
             $failures += "install directory"
           } else {
             Write-Host "OK: install directory removed"
           }
           
           $userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
-          if ($userPath -like "*$installDir*") {
-            Write-Host "LEFTOVER: PATH still contains $installDir"
+          if ($userPath -like "*$relocateDir*") {
+            Write-Host "LEFTOVER: PATH still contains $relocateDir"
             $failures += "PATH"
           } else {
             Write-Host "OK: PATH entry removed"
@@ -357,6 +396,13 @@ jobs:
           if ($failures.Count -gt 0) {
             Write-Error "Uninstallation verification failed: $($failures -join ', ')"
             exit 1
+          }
+          
+          # Relocating with /D= intentionally leaves the first install's
+          # directory and PATH entry behind; document uninstall-first instead
+          $defaultDir = Join-Path $env:LOCALAPPDATA "FileX"
+          if (Test-Path $defaultDir) {
+            Write-Host "NOTE: first install directory remains at $defaultDir (expected after relocation)"
           }
 
   create-release:
