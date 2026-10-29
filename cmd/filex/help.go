@@ -1,0 +1,194 @@
+package main
+
+import (
+	"os"
+
+	"filex/internal/errs"
+)
+
+type Command struct {
+	Verb        string   `json:"verb"`
+	Description string   `json:"description"`
+	Args        []string `json:"args,omitempty"`
+	Flags       []Flag   `json:"flags,omitempty"`
+	Stage       string   `json:"stage"`
+}
+
+type Flag struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+func getCommands() []Command {
+	return []Command{
+		{
+			Verb:        "help",
+			Description: "Show help (use --json for machine-readable)",
+			Flags:       []Flag{{Name: "--json", Description: "Output as JSON"}},
+			Stage:       "M0",
+		},
+		{
+			Verb:        "version",
+			Description: "Show version info",
+			Stage:       "M0",
+		},
+		{
+			Verb:        "read",
+			Description: "Read file with encoding detection",
+			Args:        []string{"<path>"},
+			Flags: []Flag{
+				{Name: "--encoding", Description: "Force encoding: auto|utf8|utf8bom|gbk|gb18030|utf16le|utf16be"},
+				{Name: "--max-bytes", Description: "Max bytes to read"},
+				{Name: "--offset", Description: "Start from line N (0-indexed)"},
+				{Name: "--limit", Description: "Read N lines"},
+			},
+			Stage: "M1",
+		},
+		{
+			Verb:        "write",
+			Description: "Atomic file write",
+			Args:        []string{"<path>", "<content>"},
+			Flags: []Flag{
+				{Name: "--encoding", Description: "Output encoding"},
+				{Name: "--create-parents", Description: "Create parent directories"},
+				{Name: "--expect-sha256", Description: "Optimistic lock: expected hash"},
+				{Name: "--backup", Description: "Backup before write"},
+			},
+			Stage: "M2",
+		},
+		{
+			Verb:        "edit",
+			Description: "Byte-level find/replace preserving encoding",
+			Args:        []string{"<path>"},
+			Flags: []Flag{
+				{Name: "--find", Description: "Text to find"},
+				{Name: "--replace", Description: "Replacement text"},
+				{Name: "--all", Description: "Replace all occurrences"},
+				{Name: "--dry-run", Description: "Show matches without modifying"},
+				{Name: "--expect-sha256", Description: "Optimistic lock: expected hash"},
+				{Name: "--backup", Description: "Backup before edit"},
+			},
+			Stage: "M1",
+		},
+		{
+			Verb:        "grep",
+			Description: "Search with encoding awareness",
+			Args:        []string{"<pattern>"},
+			Flags: []Flag{
+				{Name: "--paths", Description: "Paths to search"},
+				{Name: "--encoding", Description: "Force encoding"},
+				{Name: "--max", Description: "Max matches"},
+				{Name: "--stream", Description: "Stream mode for large files"},
+			},
+			Stage: "M1/M5",
+		},
+		{
+			Verb:        "stat",
+			Description: "File metadata (size, mtime, encoding, lock status)",
+			Args:        []string{"<path>"},
+			Stage:       "M2",
+		},
+		{
+			Verb:        "lock",
+			Description: "Lock diagnosis (exclusive + deletable)",
+			Args:        []string{"<path>"},
+			Stage:       "M2",
+		},
+		{
+			Verb:        "ls",
+			Description: "List directory",
+			Args:        []string{"<path>"},
+			Flags: []Flag{
+				{Name: "--depth", Description: "Recursion depth"},
+				{Name: "--json", Description: "Output as JSON"},
+			},
+			Stage: "M2",
+		},
+		{
+			Verb:        "hash",
+			Description: "Compute checksum",
+			Args:        []string{"<path>"},
+			Flags: []Flag{
+				{Name: "--algo", Description: "Hash algorithm (default: sha256)"},
+			},
+			Stage: "M2",
+		},
+		{
+			Verb:        "rm",
+			Description: "Remove (recycle bin by default)",
+			Args:        []string{"<path>"},
+			Flags: []Flag{
+				{Name: "--dry-run", Description: "Show what would be deleted"},
+				{Name: "--purge", Description: "Permanently delete"},
+				{Name: "--yes", Description: "Skip confirmation"},
+			},
+			Stage: "M2",
+		},
+		{
+			Verb:        "tail",
+			Description: "Read last N lines (encoding-aware)",
+			Args:        []string{"<path>"},
+			Flags: []Flag{
+				{Name: "--lines", Description: "Number of lines (default: 10)"},
+				{Name: "--encoding", Description: "Force encoding"},
+				{Name: "--follow", Description: "Follow file (experimental)"},
+			},
+			Stage: "M5",
+		},
+		{
+			Verb:        "env",
+			Description: "Environment variables",
+			Args:        []string{"<action>"},
+			Flags: []Flag{
+				{Name: "get", Description: "Get variable value"},
+				{Name: "set", Description: "Set variable"},
+				{Name: "list", Description: "List variables"},
+				{Name: "unset", Description: "Delete variable"},
+				{Name: "--scope", Description: "Scope: process|user|machine"},
+			},
+			Stage: "M3",
+		},
+		{
+			Verb:        "backup",
+			Description: "Backup management",
+			Args:        []string{"<action>"},
+			Flags: []Flag{
+				{Name: "list", Description: "List backups"},
+				{Name: "restore", Description: "Restore from backup"},
+				{Name: "prune", Description: "Clean old backups"},
+			},
+			Stage: "M2",
+		},
+		{
+			Verb:        "mcp",
+			Description: "MCP server",
+			Args:        []string{"<action>"},
+			Flags: []Flag{
+				{Name: "serve", Description: "Start MCP stdio server"},
+				{Name: "install", Description: "Install MCP config"},
+			},
+			Stage: "M6",
+		},
+	}
+}
+
+func runHelp() *errs.Error {
+	jsonMode := false
+	for _, arg := range os.Args[2:] {
+		if arg == "--json" {
+			jsonMode = true
+		}
+	}
+
+	if jsonMode {
+		if err := errs.WriteSuccess(os.Stdout, getCommands()); err != nil {
+			return errs.Newf(errs.EIO, "failed to write help: %v", err)
+		}
+		return nil
+	}
+
+	for _, cmd := range getCommands() {
+		println(cmd.Verb, "-", cmd.Description, "["+cmd.Stage+"]")
+	}
+	return nil
+}

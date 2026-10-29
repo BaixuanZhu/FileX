@@ -1,0 +1,32 @@
+# Build output
+*.exe
+*.dll
+*.so
+*.dylib
+*.o
+*.a
+*.lib
+
+# Test binary
+*.test
+
+# Go coverage
+*.out
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Trellis runtime
+.trellis/.runtime/

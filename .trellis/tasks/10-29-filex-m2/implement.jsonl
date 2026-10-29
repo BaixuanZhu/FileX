@@ -1,0 +1,2 @@
+{"file": ".trellis/tasks/10-29-filex/design.md", "reason": "Architecture: winfs, backup, atomic write"}
+{"file": ".trellis/tasks/10-29-filex/research/filex-plan.md", "reason": "Sections 6.2 atomic write, 6.3 lock detection, 6.7 backup strategy"}

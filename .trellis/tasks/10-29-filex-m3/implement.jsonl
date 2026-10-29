@@ -1,0 +1,2 @@
+{"file": ".trellis/tasks/10-29-filex/design.md", "reason": "Env var design: 3 scopes, REG_EXPAND_SZ, broadcast"}
+{"file": ".trellis/tasks/10-29-filex/research/envward-reusable-modules.md", "reason": "envward modules to port: registry, broadcast, detect/expand"}
