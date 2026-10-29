@@ -148,8 +148,13 @@ jobs:
           find artifacts -type f -ls
 
       - name: Create combined checksums file
+        id: checksums
         run: |
           cat artifacts/*/*.sha256 > checksums.txt
+          CHECKSUMS=$(cat checksums.txt)
+          echo "content<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHECKSUMS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
           cat checksums.txt
 
       - name: Generate changelog
@@ -160,12 +165,14 @@ jobs:
           
           if [ -z "$PREV_TAG" ]; then
             echo "No previous tag found, using all commits"
-            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --reverse)
+            # Generate a simple changelog from commit messages
+            CHANGELOG=$(git log --pretty=format:"- %s" --reverse | grep -v "^- Merge" | head -20)
           else
             echo "Generating changelog from $PREV_TAG to HEAD"
-            CHANGELOG=$(git log ${PREV_TAG}..HEAD --pretty=format:"- %s (%h)" --reverse)
+            CHANGELOG=$(git log ${PREV_TAG}..HEAD --pretty=format:"- %s" --reverse | grep -v "^- Merge" | head -20)
           fi
           
+          # Escape for GitHub Actions
           CHANGELOG="${CHANGELOG//'%'/'%25'}"
           CHANGELOG="${CHANGELOG//$'\n'/'%0A'}"
           CHANGELOG="${CHANGELOG//$'\r'/'%0D'}"
@@ -197,8 +204,9 @@ jobs:
             Download the archive for your platform below and extract to your PATH.
             
             ## Checksums
+            
             ```
-            $(cat checksums.txt)
+            ${{ steps.checksums.outputs.content }}
             ```
           files: |
             artifacts/*/*.zip
