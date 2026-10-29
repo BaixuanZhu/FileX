@@ -1,5 +1,12 @@
 ---
 name: filex
+slug: filex
+version: 0.3.0
+displayName: FileX 编码感知的 Windows 文件操作
+summary: Windows 编码感知文件操作 CLI：GBK/GB18030/UTF-16/BOM 自动检测保持、回收站删除、文件锁诊断、环境变量持久化、备份与一键恢复，含二进制与 MCP 安装指引。
+tags: [windows, encoding, gbk, file-operations, mcp]
+license: MIT
+homepage: https://github.com/BaixuanZhu/FileX
 description: 面向 Windows 的编码感知、可恢复文件操作 CLI 工具。read/write/edit/grep/tail 自动检测并保持 GBK、GB18030、UTF-16、BOM 编码，非 UTF-8 文件不会被写成乱码；rm 默认进回收站随时可找回，每次修改都有审计日志、备份与一键恢复；lock 命令诊断文件被哪个进程占用（文件正在使用 / file in use / 删不掉）；env 命令持久修改用户级/系统级环境变量并广播生效。凡遇到文件可能不是 UTF-8、删除需要可撤销、rm 因文件被占用而失败、需要修改 PATH 或注册表环境变量的场景，都应使用本技能——即使用户没有提到编码问题。纯 UTF-8 文件的简单读写请继续使用内置 Read/Edit 工具。
 ---
 
