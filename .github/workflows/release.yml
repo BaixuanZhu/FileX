@@ -79,22 +79,24 @@ jobs:
         shell: pwsh
         run: |
           $archiveDir = "filex-${{ steps.version.outputs.tag }}-windows-x64"
-          Compress-Archive -Path $archiveDir -DestinationPath "${{ matrix.platform }}-x64.zip"
-          ls "${{ matrix.platform }}-x64.zip"
+          $archiveName = "filex-${{ steps.version.outputs.tag }}-windows-x64.zip"
+          Compress-Archive -Path $archiveDir -DestinationPath $archiveName
+          ls $archiveName
 
       - name: Create archive (Unix)
         if: matrix.os != 'windows-latest'
         shell: bash
         run: |
           ARCHIVE_DIR="filex-${{ steps.version.outputs.tag }}-${{ matrix.platform }}-x64"
-          tar -czf "${{ matrix.platform }}-x64.tar.gz" "$ARCHIVE_DIR"
-          ls -lh "${{ matrix.platform }}-x64.tar.gz"
+          ARCHIVE_NAME="filex-${{ steps.version.outputs.tag }}-${{ matrix.platform }}-x64.tar.gz"
+          tar -czf "$ARCHIVE_NAME" "$ARCHIVE_DIR"
+          ls -lh "$ARCHIVE_NAME"
 
       - name: Generate checksum (Windows)
         if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
-          $archive = "${{ matrix.platform }}-x64.zip"
+          $archive = "filex-${{ steps.version.outputs.tag }}-windows-x64.zip"
           $hash = (Get-FileHash -Path $archive -Algorithm SHA256).Hash.ToLower()
           "$hash  $archive" | Out-File -FilePath "$archive.sha256" -Encoding ASCII
           Get-Content "$archive.sha256"
@@ -103,16 +105,17 @@ jobs:
         if: matrix.os != 'windows-latest'
         shell: bash
         run: |
-          shasum -a 256 "${{ matrix.platform }}-x64.tar.gz" > "${{ matrix.platform }}-x64.tar.gz.sha256"
-          cat "${{ matrix.platform }}-x64.tar.gz.sha256"
+          ARCHIVE="filex-${{ steps.version.outputs.tag }}-${{ matrix.platform }}-x64.tar.gz"
+          shasum -a 256 "$ARCHIVE" > "$ARCHIVE.sha256"
+          cat "$ARCHIVE.sha256"
 
       - name: Upload archive artifact
         uses: actions/upload-artifact@v4
         with:
           name: filex-${{ matrix.platform }}-x64
           path: |
-            ${{ matrix.platform }}-x64.${{ matrix.archive_ext }}
-            ${{ matrix.platform }}-x64.${{ matrix.archive_ext }}.sha256
+            filex-${{ steps.version.outputs.tag }}-${{ matrix.platform }}-x64.${{ matrix.archive_ext }}
+            filex-${{ steps.version.outputs.tag }}-${{ matrix.platform }}-x64.${{ matrix.archive_ext }}.sha256
           retention-days: 7
 
   create-release:
