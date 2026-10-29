@@ -1,19 +1,30 @@
-# M6: MCP adapter, profiles, conformance tests, mcp install
+# M6: MCP adapter — stdlib JSON-RPC 2.0, profiles, tool mapping
 
 ## Goal
 
-Implement stdlib JSON-RPC 2.0 MCP server, map 11 tools to ops, profile support (ro/rw), mcp serve/install. Deliverable: MCP client can call all tools; profile correctly restricts tool set; CLI and MCP results match field-by-field.
+Implement stdio MCP server mapping 11 tools to ops, with ro/rw profiles. `filex mcp serve` starts server; `filex mcp install` writes client config.
 
 ## Requirements
 
-- TBD
+- JSON-RPC 2.0 over stdio (no third-party MCP SDK)
+- 11 tools: read, write, edit, grep, stat, lock, ls, rm, tail, backup, env
+- Profile ro (default): read grep stat lock ls tail env(get/list) backup(list)
+- Profile rw: all tools
+- `initialize` records clientInfo to journal
+- Context cancellation for long operations
+- `filex mcp serve` — start stdio server
+- `filex mcp install --client=claude|cursor|vscode` — write config
 
 ## Acceptance Criteria
 
-- [ ] TBD
+- [ ] MCP client can call all 11 tools
+- [ ] ro profile restricts to read-only tools
+- [ ] rw profile exposes all tools
+- [ ] clientInfo from initialize recorded in journal
+- [ ] go build/test/vet pass
 
 ## Notes
 
-- Keep `prd.md` focused on requirements, constraints, and acceptance criteria.
-- Lightweight tasks can remain PRD-only.
-- For complex tasks, add `design.md` for technical design and `implement.md` for execution planning before `task.py start`.
+- Pure stdlib implementation, no MCP SDK dependency
+- Content-Length header framing for stdio transport
+- Tool input schemas as JSON Schema objects

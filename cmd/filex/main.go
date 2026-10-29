@@ -48,7 +48,7 @@ func main() {
 	case "env":
 		err = runEnv(os.Args[2:])
 	case "mcp":
-		err = errs.Newf(errs.EUnsupported, "verb %q not yet implemented (M6)", verb)
+		err = runMCP(os.Args[2:])
 	default:
 		fmt.Fprintf(os.Stderr, "unknown verb: %s\n", verb)
 		printUsage()

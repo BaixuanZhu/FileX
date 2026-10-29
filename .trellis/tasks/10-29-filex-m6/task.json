@@ -3,7 +3,7 @@
   "name": "filex-m6",
   "title": "M6: MCP adapter, profiles, conformance tests, mcp install",
   "description": "Implement stdlib JSON-RPC 2.0 MCP server, map 11 tools to ops, profile support (ro/rw), mcp serve/install. Deliverable: MCP client can call all tools; profile correctly restricts tool set; CLI and MCP results match field-by-field.",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": null,
