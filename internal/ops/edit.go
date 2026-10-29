@@ -34,6 +34,20 @@ func Edit(p EditParams) (*EditResult, *errs.Error) {
 		return nil, pErr
 	}
 
+	info, err := os.Stat(p.Path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, errs.WithHint(errs.Newf(errs.ENotFound, "file not found: %s", p.Path), "check the path")
+		}
+		return nil, errs.Newf(errs.EIO, "stat failed: %v", err)
+	}
+	if info.Size() > 100*1024*1024 {
+		return nil, errs.WithHint(
+			errs.Newf(errs.ETooLarge, "file is %dMB, edit limit is 100MB", info.Size()/(1024*1024)),
+			"use grep --stream to locate, tail to read context, then edit a smaller region",
+		)
+	}
+
 	data, err := os.ReadFile(p.Path)
 	if err != nil {
 		if os.IsNotExist(err) {

@@ -41,8 +41,10 @@ func main() {
 		err = runRm(os.Args[2:])
 	case "backup":
 		err = runBackup(os.Args[2:])
-	case "grep", "tail":
-		err = errs.Newf(errs.EUnsupported, "verb %q not yet implemented (M5)", verb)
+	case "grep":
+		err = runGrep(os.Args[2:])
+	case "tail":
+		err = runTail(os.Args[2:])
 	case "env":
 		err = runEnv(os.Args[2:])
 	case "mcp":

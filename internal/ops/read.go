@@ -2,6 +2,7 @@ package ops
 
 import (
 	"os"
+	"strings"
 
 	"filex/internal/encoding"
 	"filex/internal/errs"
@@ -20,9 +21,16 @@ type ReadResult struct {
 	Encoding   encoding.DetectionResult `json:"encoding"`
 	Size       int64                 `json:"size"`
 	Truncated  bool                  `json:"truncated,omitempty"`
+	StartLine  int                   `json:"start_line,omitempty"`
+	EndLine    int                   `json:"end_line,omitempty"`
+	TotalLines int                   `json:"total_lines,omitempty"`
 }
 
 func Read(p ReadParams) (*ReadResult, *errs.Error) {
+	if pErr := checkPolicy(p.Path); pErr != nil {
+		return nil, pErr
+	}
+
 	data, err := os.ReadFile(p.Path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -61,10 +69,40 @@ func Read(p ReadParams) (*ReadResult, *errs.Error) {
 		return nil, errs.Newf(errs.EEncoding, "decode failed: %v", err)
 	}
 
-	return &ReadResult{
+	result := &ReadResult{
 		Content:   content,
 		Encoding:  det,
 		Size:      size,
 		Truncated: truncated,
-	}, nil
+	}
+
+	if p.Offset > 0 || p.Limit > 0 {
+		lines := strings.Split(content, "\n")
+		totalLines := len(lines)
+
+		startLine := p.Offset
+		if startLine < 0 {
+			startLine = 0
+		}
+		if startLine >= totalLines {
+			result.Content = ""
+			result.StartLine = startLine + 1
+			result.EndLine = startLine
+			result.TotalLines = totalLines
+			return result, nil
+		}
+
+		endLine := totalLines
+		if p.Limit > 0 && startLine+p.Limit < endLine {
+			endLine = startLine + p.Limit
+		}
+
+		selected := lines[startLine:endLine]
+		result.Content = strings.Join(selected, "\n")
+		result.StartLine = startLine + 1
+		result.EndLine = endLine
+		result.TotalLines = totalLines
+	}
+
+	return result, nil
 }
