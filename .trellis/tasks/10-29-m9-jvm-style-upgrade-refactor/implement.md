@@ -484,9 +484,357 @@ func cleanupVersions() error {
 - Test useVersion() with valid/invalid versions
 - Test cleanupVersions() keeps last 3
 
-## Phase 3: Migration (2-3 hours)
+## Phase 3: Archive Packaging (2-3 hours)
 
-### 3.1 Detect Flat Installation
+### 3.1 Update Release Workflow for Multi-Platform Builds
+
+**File**: `.github/workflows/release.yml` (modify existing)
+
+Key changes:
+- Add matrix strategy for Windows/Linux/macOS
+- Build platform-specific archives (ZIP for Windows, tar.gz for Unix)
+- Include binary + docs + license in each archive
+- Generate checksums for all archives
+- Upload archives to GitHub Releases
+
+```yaml
+jobs:
+  release:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            goarch: amd64
+            archive_ext: zip
+            binary_name: filex.exe
+            archive_name: filex-${{ github.ref_name }}-windows-x64.zip
+          - os: ubuntu-latest
+            goarch: amd64
+            archive_ext: tar.gz
+            binary_name: filex
+            archive_name: filex-${{ github.ref_name }}-linux-x64.tar.gz
+          - os: macos-latest
+            goarch: amd64
+            archive_ext: tar.gz
+            binary_name: filex
+            archive_name: filex-${{ github.ref_name }}-darwin-x64.tar.gz
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+      
+      - name: Extract version
+        id: version
+        shell: bash
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$GITHUB_REF_NAME" >> $GITHUB_OUTPUT
+      
+      - name: Build binary
+        shell: bash
+        run: |
+          COMMIT=${GITHUB_SHA::8}
+          go build -ldflags "-X filex/internal/buildinfo.Version=${{ steps.version.outputs.version }} -X filex/internal/buildinfo.Commit=$COMMIT -X filex/internal/buildinfo.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o ${{ matrix.binary_name }} ./cmd/filex
+      
+      - name: Prepare archive directory
+        shell: bash
+        run: |
+          ARCHIVE_DIR="filex-${{ steps.version.outputs.tag }}-${{ matrix.os == 'windows-latest' && 'windows' || (matrix.os == 'ubuntu-latest' && 'linux' || 'darwin') }}-x64"
+          mkdir -p "$ARCHIVE_DIR/docs"
+          cp ${{ matrix.binary_name }} "$ARCHIVE_DIR/"
+          cp README.md "$ARCHIVE_DIR/"
+          cp LICENSE "$ARCHIVE_DIR/"
+          cp docs/SKILL.md "$ARCHIVE_DIR/docs/"
+      
+      - name: Create archive (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          $archiveDir = "filex-${{ steps.version.outputs.tag }}-windows-x64"
+          Compress-Archive -Path $archiveDir -DestinationPath "${{ matrix.archive_name }}"
+      
+      - name: Create archive (Unix)
+        if: matrix.os != 'windows-latest'
+        shell: bash
+        run: |
+          ARCHIVE_DIR="filex-${{ steps.version.outputs.tag }}-${{ matrix.os == 'ubuntu-latest' && 'linux' || 'darwin' }}-x64"
+          tar -czf "${{ matrix.archive_name }}" "$ARCHIVE_DIR"
+      
+      - name: Generate checksum
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            certutil -hashfile "${{ matrix.archive_name }}" SHA256 > "${{ matrix.archive_name }}.sha256"
+          else
+            shasum -a 256 "${{ matrix.archive_name }}" > "${{ matrix.archive_name }}.sha256"
+          fi
+      
+      - name: Upload archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.archive_name }}
+          path: |
+            ${{ matrix.archive_name }}
+            ${{ matrix.archive_name }}.sha256
+  
+  create-release:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      
+      - name: Create combined checksums file
+        run: |
+          cat artifacts/*/*.sha256 > checksums.txt
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/*/*.zip
+            artifacts/*/*.tar.gz
+            checksums.txt
+          generate_release_notes: true
+```
+
+### 3.2 Update Upgrade Logic for Archive Extraction
+
+**File**: `cmd/filex/upgrade_cmd.go` (modify)
+
+Key changes:
+- Download platform-specific archive instead of standalone binary
+- Extract archive to temporary directory
+- Move binary and docs from extracted archive to version directory
+- Verify checksum of archive (not just binary)
+
+```go
+func runUpgrade(args []string) error {
+    // ... existing code until download ...
+    
+    // Determine archive name based on platform
+    archiveName := getArchiveName(latest.Version)
+    archiveURL := fmt.Sprintf("https://github.com/BaixuanZhu/FileX/releases/download/v%s/%s", latest.Version, archiveName)
+    
+    // Download archive to temporary directory
+    tempDir, err := os.MkdirTemp("", "filex-upgrade-")
+    if err != nil {
+        return err
+    }
+    defer os.RemoveAll(tempDir)
+    
+    archivePath := filepath.Join(tempDir, archiveName)
+    if err := downloadFile(archiveURL, archivePath); err != nil {
+        return err
+    }
+    
+    // Verify checksum
+    if err := verifyArchiveChecksum(archivePath, latest.Checksums); err != nil {
+        return err
+    }
+    
+    // Extract archive
+    extractDir := filepath.Join(tempDir, "extracted")
+    if err := extractArchive(archivePath, extractDir); err != nil {
+        return err
+    }
+    
+    // Find extracted directory (filex-v{version}-{platform}/)
+    entries, err := os.ReadDir(extractDir)
+    if err != nil {
+        return err
+    }
+    if len(entries) != 1 {
+        return fmt.Errorf("unexpected archive structure")
+    }
+    extractedDir := filepath.Join(extractDir, entries[0].Name())
+    
+    // Create version directory
+    versionDir, err := version.VersionDir(latest.Version)
+    if err != nil {
+        return err
+    }
+    
+    if err := os.MkdirAll(versionDir, 0755); err != nil {
+        return err
+    }
+    
+    // Move binary from extracted archive
+    binaryName := "filex"
+    if runtime.GOOS == "windows" {
+        binaryName = "filex.exe"
+    }
+    srcBinary := filepath.Join(extractedDir, binaryName)
+    dstBinary := filepath.Join(versionDir, binaryName)
+    if err := moveFile(srcBinary, dstBinary); err != nil {
+        os.RemoveAll(versionDir)
+        return err
+    }
+    
+    // Copy docs if present
+    srcDocs := filepath.Join(extractedDir, "docs")
+    if _, err := os.Stat(srcDocs); err == nil {
+        dstDocs := filepath.Join(versionDir, "docs")
+        if err := copyDir(srcDocs, dstDocs); err != nil {
+            fmt.Printf("Warning: failed to copy docs: %v\n", err)
+            // Non-fatal, continue
+        }
+    }
+    
+    // Switch current link
+    if err := version.CreateCurrentLink(latest.Version); err != nil {
+        os.RemoveAll(versionDir)
+        return err
+    }
+    
+    fmt.Printf("Upgraded to v%s\n", latest.Version)
+    
+    // Automatic cleanup
+    if err := autoCleanup(); err != nil {
+        fmt.Printf("Warning: cleanup failed: %v\n", err)
+    }
+    
+    fmt.Println("New version will be used on next invocation")
+    return nil
+}
+
+func getArchiveName(version string) string {
+    platform := runtime.GOOS
+    arch := runtime.GOARCH
+    
+    var osName string
+    switch platform {
+    case "windows":
+        osName = "windows"
+    case "linux":
+        osName = "linux"
+    case "darwin":
+        osName = "darwin"
+    default:
+        osName = platform
+    }
+    
+    var ext string
+    if platform == "windows" {
+        ext = "zip"
+    } else {
+        ext = "tar.gz"
+    }
+    
+    return fmt.Sprintf("filex-v%s-%s-%s.%s", version, osName, arch, ext)
+}
+
+func extractArchive(archivePath, destDir string) error {
+    if strings.HasSuffix(archivePath, ".zip") {
+        return extractZip(archivePath, destDir)
+    } else if strings.HasSuffix(archivePath, ".tar.gz") {
+        return extractTarGz(archivePath, destDir)
+    }
+    return fmt.Errorf("unsupported archive format")
+}
+
+func extractZip(zipPath, destDir string) error {
+    // Use PowerShell on Windows, or archive/zip package
+    if runtime.GOOS == "windows" {
+        cmd := exec.Command("powershell", "-Command", 
+            "Expand-Archive", "-Path", zipPath, "-DestinationPath", destDir)
+        output, err := cmd.CombinedOutput()
+        if err != nil {
+            return fmt.Errorf("failed to extract zip: %w, output: %s", err, output)
+        }
+        return nil
+    }
+    // Unix: use archive/zip package
+    // ... implementation ...
+}
+
+func extractTarGz(tarGzPath, destDir string) error {
+    // Use tar command
+    cmd := exec.Command("tar", "-xzf", tarGzPath, "-C", destDir)
+    output, err := cmd.CombinedOutput()
+    if err != nil {
+        return fmt.Errorf("failed to extract tar.gz: %w, output: %s", err, output)
+    }
+    return nil
+}
+```
+
+**Tests**:
+- Test archive name generation for each platform
+- Test archive extraction (mock archives)
+- Test checksum verification for archives
+- Test binary and docs extraction
+
+### 3.3 Update Install Scripts for Archive Handling
+
+**File**: `install.ps1` (modify)
+
+Key changes:
+- Download ZIP archive instead of standalone binary
+- Extract archive to temporary directory
+- Move files from extracted archive to versioned directory
+
+```powershell
+# Download archive
+$archiveName = "filex-v$Version-windows-x64.zip"
+$archiveUrl = "https://github.com/BaixuanZhu/FileX/releases/download/v$Version/$archiveName"
+$archivePath = Join-Path $env:TEMP $archiveName
+Invoke-WebRequest -Uri $archiveUrl -OutFile $archivePath
+
+# Verify checksum
+$checksumUrl = "https://github.com/BaixuanZhu/FileX/releases/download/v$Version/checksums.txt"
+$checksumsPath = Join-Path $env:TEMP "checksums.txt"
+Invoke-WebRequest -Uri $checksumUrl -OutFile $checksumsPath
+$expectedChecksum = (Select-String -Path $checksumsPath -Pattern $archiveName).Line.Split(' ')[0]
+$actualChecksum = (Get-FileHash -Path $archivePath -Algorithm SHA256).Hash.ToLower()
+if ($actualChecksum -ne $expectedChecksum) {
+    throw "Checksum verification failed"
+}
+
+# Extract archive
+$extractDir = Join-Path $env:TEMP "filex-extract"
+if (Test-Path $extractDir) { Remove-Item $extractDir -Recurse -Force }
+Expand-Archive -Path $archivePath -DestinationPath $extractDir
+
+# Find extracted directory
+$extractedDir = Get-ChildItem -Path $extractDir -Directory | Select-Object -First 1
+
+# Create versioned directory structure
+$versionsDir = Join-Path $InstallDir "versions\v$Version"
+New-Item -ItemType Directory -Path $versionsDir -Force | Out-Null
+
+# Move binary and docs
+Move-Item -Path (Join-Path $extractedDir.FullName "filex.exe") -Destination $versionsDir -Force
+if (Test-Path (Join-Path $extractedDir.FullName "docs")) {
+    Copy-Item -Path (Join-Path $extractedDir.FullName "docs") -Destination $versionsDir -Recurse -Force
+}
+
+# Cleanup
+Remove-Item $archivePath -Force
+Remove-Item $extractDir -Recurse -Force
+
+# Create current junction
+# ... rest of script ...
+```
+
+**File**: `install.sh` (modify)
+
+Similar changes for Unix:
+- Download tar.gz archive
+- Extract with tar
+- Move files to versioned directory
+
+## Phase 4: Migration (2-3 hours)
+
+### 4.1 Detect Flat Installation
 
 **File**: `internal/version/migrate.go` (new)
 
@@ -602,7 +950,7 @@ func copyFile(src, dst string) error {
 - Test MigrateFromFlat() creates correct structure
 - Test migration preserves binary
 
-### 3.2 Integrate Migration into Main
+### 4.2 Integrate Migration into Main
 
 **File**: `cmd/filex/main.go` (modify)
 
@@ -627,9 +975,9 @@ func main() {
 }
 ```
 
-## Phase 4: Installation (2-3 hours)
+## Phase 5: Installation (2-3 hours)
 
-### 4.1 Update install.ps1
+### 5.1 Update install.ps1
 
 **File**: `install.ps1` (modify existing)
 
@@ -670,7 +1018,7 @@ Set-Content -Path $wrapperPath -Value $wrapperContent
 Add-ToPath -Directory $InstallDir
 ```
 
-### 4.2 Create Unix Install Script
+### 5.2 Create Unix Install Script
 
 **File**: `install.sh` (new)
 
@@ -710,16 +1058,16 @@ echo "FileX v${VERSION} installed successfully!"
 echo "Wrapper installed to ${WRAPPER_PATH}"
 ```
 
-## Phase 5: Testing (3-4 hours)
+## Phase 6: Testing (3-4 hours)
 
-### 5.1 Unit Tests
+### 6.1 Unit Tests
 
 - `internal/version/paths_test.go`
 - `internal/version/link_test.go`
 - `internal/version/migrate_test.go`
 - `cmd/filex/upgrade_cmd_test.go`
 
-### 5.2 Integration Tests
+### 6.2 Integration Tests
 
 **File**: `test/integration/upgrade_test.go` (new)
 
@@ -765,7 +1113,7 @@ func TestMigrationFlow(t *testing.T) {
 }
 ```
 
-### 5.3 Platform Tests
+### 6.3 Platform Tests
 
 **Windows**:
 - Test junction creation
@@ -777,7 +1125,7 @@ func TestMigrationFlow(t *testing.T) {
 - Test wrapper shell script
 - Test migration from flat installation
 
-### 5.4 Manual Testing Checklist
+### 6.4 Manual Testing Checklist
 
 - [ ] Fresh install creates correct structure
 - [ ] `filex upgrade` downloads and switches version
@@ -794,9 +1142,9 @@ func TestMigrationFlow(t *testing.T) {
 - [ ] Checksum verification catches corruption
 - [ ] Rollback works when upgrade fails
 
-## Phase 6: Documentation (1-2 hours)
+## Phase 7: Documentation (1-2 hours)
 
-### 6.1 Update README.md
+### 7.1 Update README.md
 
 Add section on version management:
 
@@ -834,11 +1182,11 @@ filex upgrade --cleanup
 If you have an existing flat installation, FileX will automatically migrate it on first run.
 ```
 
-### 6.2 Update docs/SKILL.md
+### 7.2 Update docs/SKILL.md
 
 Add version management commands to quick reference.
 
-### 6.3 Create Migration Guide
+### 7.3 Create Migration Guide
 
 **File**: `docs/MIGRATION.md` (new)
 
@@ -854,11 +1202,12 @@ Explain:
 |-------|----------|--------------|
 | Phase 1: Core Infrastructure | 2-3 hours | None |
 | Phase 2: Upgrade Logic | 3-4 hours | Phase 1 |
-| Phase 3: Migration | 2-3 hours | Phase 1 |
-| Phase 4: Installation | 2-3 hours | Phase 1, 2 |
-| Phase 5: Testing | 3-4 hours | All phases |
-| Phase 6: Documentation | 1-2 hours | All phases |
-| **Total** | **13-19 hours** | |
+| Phase 3: Archive Packaging | 2-3 hours | Phase 2 |
+| Phase 4: Migration | 2-3 hours | Phase 1 |
+| Phase 5: Installation | 2-3 hours | Phase 1, 2, 3 |
+| Phase 6: Testing | 3-4 hours | All phases |
+| Phase 7: Documentation | 1-2 hours | All phases |
+| **Total** | **15-22 hours** | |
 
 ## Risk Mitigation
 

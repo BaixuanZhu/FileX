@@ -2,7 +2,7 @@
 
 ## Goal
 
-Refactor FileX self-upgrade mechanism from "replace running executable" to "JVM-style version management" with multi-version directory structure and atomic version switching.
+Refactor FileX self-upgrade mechanism from "replace running executable" to "JVM-style version management" with multi-version directory structure, atomic version switching, and archive-based distribution (ZIP/tar.gz).
 
 ## Background
 
@@ -11,12 +11,14 @@ Current implementation (M8) modifies the running executable during upgrade, whic
 - Requires terminal restart to use new version
 - Doesn't support multi-version coexistence
 - Has complex rollback logic with .old files
+- Distributes as standalone binary (no bundled docs/license)
 
 JVM-style approach (used by sdkman, nvm, rustup):
 - Downloads new version to isolated directory
 - Atomically switches "current" pointer
 - Next invocation uses new version automatically
 - Supports instant rollback to previous versions
+- Distributes as platform-specific archives (ZIP/tar.gz)
 
 ## Requirements
 
@@ -87,6 +89,44 @@ Existing users with flat `filex.exe` installation:
 - Instant, no download needed
 - Old versions remain until explicitly cleaned up
 
+### Distribution Format
+
+**Archive-based distribution** (replaces standalone binary):
+
+**Release artifacts**:
+```
+filex-v{version}-windows-x64.zip       # Windows portable
+filex-v{version}-linux-x64.tar.gz      # Linux portable
+filex-v{version}-darwin-x64.tar.gz     # macOS portable
+checksums.txt                          # SHA-256 for all archives
+```
+
+**Archive contents**:
+```
+filex-v{version}-{platform}/
+├── filex.exe (or filex on Unix)       # Main binary
+├── README.md                          # Documentation
+├── LICENSE                            # License file
+└── docs/
+    └── SKILL.md                       # AI agent usage guide
+```
+
+**Benefits**:
+- Bundles binary + docs + license
+- Platform-specific naming
+- Easier checksum verification
+- Consistent with JVM ecosystem tools
+- Simplifies upgrade logic (download → extract → install)
+
+**Upgrade flow update**:
+1. Download platform-specific archive (e.g., `filex-v0.1.3-windows-x64.zip`)
+2. Verify SHA-256 checksum
+3. Extract to temporary directory
+4. Move binary to `versions/v{version}/`
+5. Copy docs to `versions/v{version}/docs/`
+6. Switch `current` link
+7. Cleanup temporary files
+
 ## Acceptance Criteria
 
 - [ ] New directory structure: `~/.filex/versions/v{version}/filex.exe`
@@ -103,6 +143,13 @@ Existing users with flat `filex.exe` installation:
 - [ ] All existing tests pass
 - [ ] New tests for version management logic
 - [ ] New tests for automatic cleanup after upgrade
+- [ ] Release workflow builds multi-platform archives (Windows ZIP, Linux tar.gz, macOS tar.gz)
+- [ ] Each archive contains: binary, README.md, LICENSE, docs/SKILL.md
+- [ ] Archive filenames include version and platform (e.g., `filex-v0.1.3-windows-x64.zip`)
+- [ ] SHA-256 checksums generated for all archives
+- [ ] `filex upgrade` downloads and extracts platform-specific archive
+- [ ] Install script (`install.ps1`) handles archive extraction and installation
+- [ ] Unix install script (`install.sh`) created for Linux/macOS
 
 ## Constraints
 

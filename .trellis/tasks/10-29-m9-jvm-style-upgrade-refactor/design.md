@@ -147,6 +147,122 @@ Transform FileX from a single-binary deployment to a version-managed deployment 
         └── filex
 ```
 
+### Packaging Architecture
+
+#### Archive Format Decisions
+
+**Windows**: ZIP format
+- Native Windows support (no third-party tools needed)
+- `Expand-Archive` PowerShell cmdlet built-in
+- Familiar to Windows users
+
+**Linux/macOS**: tar.gz format
+- Standard Unix distribution format
+- Preserves file permissions (executable bit)
+- `tar` and `gzip` universally available
+
+#### Archive Structure
+
+```
+filex-v{version}-{platform}.{zip|tar.gz}
+└── filex-v{version}-{platform}/          (top-level directory)
+    ├── filex.exe (Windows) / filex (Unix)
+    ├── README.md
+    ├── LICENSE
+    └── docs/
+        └── SKILL.md
+```
+
+**Rationale**:
+- Top-level directory prevents file scattering on extraction
+- Platform-specific binary naming: `filex.exe` vs `filex`
+- Docs bundled for offline access and AI agent integration
+
+#### Multi-Platform Build Strategy
+
+**GitHub Actions matrix build**:
+```yaml
+strategy:
+  matrix:
+    include:
+      - os: windows-latest
+        goarch: amd64
+        archive_ext: zip
+        binary_name: filex.exe
+      - os: ubuntu-latest
+        goarch: amd64
+        archive_ext: tar.gz
+        binary_name: filex
+      - os: macos-latest
+        goarch: amd64
+        archive_ext: tar.gz
+        binary_name: filex
+```
+
+**Build steps per platform**:
+1. Cross-compile Go binary with version injection
+2. Create platform-specific directory structure
+3. Copy binary + docs + license
+4. Package as ZIP (Windows) or tar.gz (Unix)
+5. Generate SHA-256 checksum
+6. Upload to GitHub Releases
+
+#### Release Workflow Updates
+
+**Trigger**: `v*` tags (existing)
+
+**New artifacts**:
+- `filex-v{version}-windows-x64.zip`
+- `filex-v{version}-linux-x64.tar.gz`
+- `filex-v{version}-darwin-x64.tar.gz`
+- `checksums.txt` (all archives)
+
+**Removed artifacts**:
+- Standalone `filex.exe` (replaced by ZIP)
+- Platform-named binaries without version (replaced by versioned archives)
+
+#### Upgrade Flow with Archives
+
+```
+1. Query GitHub Releases API for latest version
+2. Determine platform-specific archive name:
+   - Windows: filex-v{version}-windows-x64.zip
+   - Linux: filex-v{version}-linux-x64.tar.gz
+   - macOS: filex-v{version}-darwin-x64.tar.gz
+3. Download archive to temporary directory
+4. Verify SHA-256 checksum against checksums.txt
+5. Extract archive:
+   - ZIP: PowerShell Expand-Archive (Windows)
+   - tar.gz: tar -xzf (Unix)
+6. Extracted directory: filex-v{version}-{platform}/
+7. Move binary to ~/.filex/versions/v{version}/
+8. Copy docs to ~/.filex/versions/v{version}/docs/
+9. Switch current link to new version
+10. Cleanup temporary files
+```
+
+#### Install Script Updates
+
+**Windows (install.ps1)**:
+- Download ZIP archive
+- Verify checksum
+- Extract to temporary directory
+- Create ~/.filex/versions/v{version}/ structure
+- Move files from extracted archive
+- Create current junction
+- Create wrapper script (filex.bat)
+- Add to PATH
+
+**Unix (install.sh)** - new script:
+- Download tar.gz archive
+- Verify checksum
+- Extract to temporary directory
+- Create ~/.local/bin/versions/v{version}/ structure
+- Move files from extracted archive
+- Create current symlink
+- Create wrapper script (filex)
+- Add to PATH (if not already present)
+
 ### Error Handling
 
 #### Junction Creation Fails
