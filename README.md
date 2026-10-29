@@ -1,74 +1,75 @@
 # FileX
 
-Deterministic file and environment variable operations for AI agents on Windows.
+[English](README.en.md) | 简体中文
 
-## Why FileX?
+面向 Windows 上 AI agent 的确定性文件与环境变量操作工具。
 
-AI agents need reliable file operations that:
-- Preserve encoding (GBK, UTF-16, BOM) — not just UTF-8
-- Provide audit trails and rollback capability
-- Handle Windows-specific concerns (registry, locks, long paths)
-- Prevent dangerous operations (system dirs, concurrent overwrites)
+## 为什么需要 FileX？
 
-FileX is a CLI tool that wraps these operations in a deterministic, JSON-output interface designed for programmatic consumption by AI models.
+AI agent 需要可靠的文件操作，它应当：
+- 保持文件编码（GBK、UTF-16、BOM）——而不只是 UTF-8
+- 提供审计轨迹与回滚能力
+- 处理 Windows 特有问题（注册表、文件锁、长路径）
+- 阻止危险操作（系统目录、并发覆盖）
 
-## Installation
+FileX 是一个 CLI 工具，把这些操作封装为确定性的 JSON 输出接口，专为 AI 模型的程序化调用而设计。
 
-### Windows Installer (Recommended)
+## 安装
 
-Download `filex-v<version>-windows-x64.exe` (e.g. `filex-v0.3.0-windows-x64.exe`) from [Releases](https://github.com/BaixuanZhu/FileX/releases) and run it.
+### Windows 安装器（推荐）
 
-The installer will:
-- Install FileX to `%LOCALAPPDATA%\FileX`
-- Add FileX to your PATH
-- Create Start Menu shortcuts
+从 [Releases](https://github.com/BaixuanZhu/FileX/releases) 下载 `filex-v<version>-windows-x64.exe`（如 `filex-v0.3.0-windows-x64.exe`）并运行。
 
-**Silent installation:**
+安装器会：
+- 将 FileX 安装到 `%LOCALAPPDATA%\FileX`
+- 将 FileX 加入 PATH
+- 创建开始菜单快捷方式
+
+**静默安装：**
 ```cmd
 filex-v0.3.0-windows-x64.exe /S
 ```
 
-**Custom directory:**
+**自定义目录：**
 ```cmd
 filex-v0.3.0-windows-x64.exe /D=D:\Tools\FileX
 ```
 
-**Moving an existing install:** an explicit `/D=` overrides the previous
-location, but the old directory and its PATH entry are left behind —
-uninstall first for a clean move.
+**迁移已有安装：** 显式 `/D=` 会覆盖上一次的安装位置，但旧目录及其 PATH
+条目不会被清理——想要干净迁移请先卸载。
 
-### PowerShell (Windows, alternative)
+### PowerShell（Windows，备选）
 
 ```powershell
 irm https://raw.githubusercontent.com/BaixuanZhu/FileX/main/install.ps1 | iex
 ```
 
-This downloads the latest release archive, extracts to `%LOCALAPPDATA%\FileX\versions\v{version}\`, creates a `current` junction, and adds the wrapper to your PATH.
+脚本会下载最新 release 归档，解压到 `%LOCALAPPDATA%\FileX\versions\v{version}\`，创建 `current` junction，并把包装器加入 PATH。
 
-### Shell (Linux/macOS)
+### Shell（Linux/macOS）
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/BaixuanZhu/FileX/main/install.sh | bash
 ```
 
-This downloads the latest release archive, extracts to `~/.filex/versions/v{version}/`, creates a `current` symlink, and adds the wrapper to your PATH.
+脚本会下载最新 release 归档，解压到 `~/.filex/versions/v{version}/`，创建 `current` 符号链接，并把包装器加入 PATH。
 
-### Go install (requires Go 1.26+)
+### Go install（需要 Go 1.26+）
 
 ```bash
 go install github.com/BaixuanZhu/FileX/cmd/filex@latest
 ```
 
-### Pre-built archives
+### 预构建归档
 
-Download the platform-specific archive from [Releases](https://github.com/BaixuanZhu/FileX/releases):
-- `filex-v{version}-windows-x64.zip` (Windows)
-- `filex-v{version}-linux-x64.tar.gz` (Linux)
-- `filex-v{version}-darwin-x64.tar.gz` (macOS)
+从 [Releases](https://github.com/BaixuanZhu/FileX/releases) 下载对应平台的归档：
+- `filex-v{version}-windows-x64.zip`（Windows）
+- `filex-v{version}-linux-x64.tar.gz`（Linux）
+- `filex-v{version}-darwin-x64.tar.gz`（macOS）
 
-Extract to your PATH. Each archive includes the binary, README, LICENSE, and docs.
+解压到 PATH 中的目录即可。每个归档包含二进制、README 和 LICENSE。
 
-### Build from source
+### 从源码构建
 
 ```bash
 # Windows (PowerShell)
@@ -81,15 +82,15 @@ go build -ldflags "-X filex/internal/buildinfo.Version=$version -X filex/interna
 go build -ldflags "-X filex/internal/buildinfo.Version=$(git describe --tags --always) -X filex/internal/buildinfo.Commit=$(git rev-parse --short HEAD) -X filex/internal/buildinfo.BuildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o filex ./cmd/filex
 ```
 
-## Quick Start
+## 快速上手
 
-### Read a file with encoding detection
+### 带编码检测地读取文件
 
 ```bash
 filex read config.ini --encoding=auto
 ```
 
-Output:
+输出：
 ```json
 {
   "success": true,
@@ -103,201 +104,201 @@ Output:
 }
 ```
 
-### Edit with backup and rollback
+### 带备份与回滚的编辑
 
 ```bash
-# Edit with automatic backup
+# 编辑并自动备份
 filex edit config.ini --find="old=value" --replace="new=value" --backup
 
-# List backups
+# 列出备份
 filex backup list
 
-# Restore if needed
+# 需要时恢复
 filex backup restore <backup-id>
 ```
 
-### Safe deletion
+### 安全删除
 
 ```bash
-# Delete to recycle bin (recoverable)
+# 删除到回收站（可恢复）
 filex rm old-file.txt
 
-# Permanent delete (use with caution)
+# 永久删除（谨慎使用）
 filex rm old-file.txt --purge --yes
 ```
 
-### Environment variables (Windows)
+### 环境变量（Windows）
 
 ```bash
-# Set user environment variable
+# 设置用户级环境变量
 filex env set NODE_ENV production --scope=user
 
-# Read with expansion
+# 读取（带变量展开）
 filex env get PATH --scope=user
 
-# List all (sensitive values masked)
+# 列出全部（敏感值脱敏）
 filex env list --scope=user
 ```
 
-### Large file operations
+### 大文件操作
 
 ```bash
-# Tail last 50 lines
+# 读取最后 50 行
 filex tail app.log --lines=50
 
-# Stream grep (memory-efficient)
+# 流式 grep（省内存）
 filex grep "ERROR" --paths="*.log" --stream --max=100
 ```
 
-### Self-upgrade and Version Management
+### 自升级与版本管理
 
-FileX uses a JVM-style version management system where each version is installed to an isolated directory and a `current` link points to the active version.
+FileX 采用 JVM 风格的版本管理：每个版本安装到独立目录，由 `current` 链接指向当前激活版本。
 
 ```bash
-# Check if update is available
+# 检查是否有更新
 filex upgrade --check
 
-# Upgrade to latest version (automatic cleanup of old versions)
+# 升级到最新版本（自动清理旧版本）
 filex upgrade
 
-# Upgrade without confirmation prompt
+# 跳过确认直接升级
 filex upgrade --yes
 
-# List all installed versions
+# 列出所有已安装版本
 filex upgrade --list
 
-# Switch to a specific installed version
+# 切换到指定已安装版本
 filex upgrade --use v0.1.3
 
-# Manually clean up old versions (keeps last 3)
+# 手动清理旧版本（保留最近 3 个）
 filex upgrade --cleanup
 ```
 
-**How it works:**
-- Downloads platform-specific archive (ZIP for Windows, tar.gz for Unix)
-- Verifies SHA-256 checksum
-- Extracts to `~/.filex/versions/v{version}/` (or `%LOCALAPPDATA%\FileX\versions\v{version}\` on Windows)
-- Atomically switches `current` link to new version
-- Automatically removes old versions (keeps last 3)
-- Next invocation uses the new version automatically
+**工作原理：**
+- 下载对应平台的归档（Windows 为 ZIP，Unix 为 tar.gz）
+- 校验 SHA-256
+- 解压到 `~/.filex/versions/v{version}/`（Windows 为 `%LOCALAPPDATA%\FileX\versions\v{version}\`）
+- 原子切换 `current` 链接到新版本
+- 自动删除旧版本（保留最近 3 个）
+- 下次调用即自动使用新版本
 
-**Directory structure:**
+**目录结构：**
 ```
 ~/.filex/                          # Linux/macOS
 %LOCALAPPDATA%\FileX\              # Windows
 ├── versions/
 │   ├── v0.1.2/
-│   │   └── filex (or filex.exe)
+│   │   └── filex (或 filex.exe)
 │   ├── v0.1.3/
-│   │   └── filex (or filex.exe)
+│   │   └── filex (或 filex.exe)
 │   └── v0.2.0/
-│       └── filex (or filex.exe)
-└── current/                       # Symlink (Unix) or junction (Windows)
+│       └── filex (或 filex.exe)
+└── current/                       # 符号链接（Unix）或 junction（Windows）
     └── -> versions/v0.2.0/
 ```
 
-**Migration:** If you have an existing flat installation, FileX will automatically migrate it to the versioned structure on first run.
+**迁移：** 如果存在旧的扁平安装，FileX 会在首次运行时自动迁移到版本化结构。
 
-## Command Reference
+## 命令参考
 
-See the [filex agent skill](skills/filex/SKILL.md) for complete command reference with examples.
+完整命令参考与示例见 [filex agent 技能](skills/filex/SKILL.md)。
 
-### File Operations
+### 文件操作
 
-| Command | Purpose |
+| 命令 | 用途 |
 |---|---|
-| `read` | Read file with encoding detection |
-| `write` | Atomic file write |
-| `edit` | Byte-level find/replace preserving encoding |
-| `grep` | Search with encoding awareness |
-| `stat` | File metadata (size, mtime, encoding, lock status) |
-| `lock` | Lock diagnosis (exclusive + deletable) |
-| `ls` | List directory |
-| `hash` | Compute checksum |
-| `rm` | Remove (recycle bin by default) |
-| `tail` | Read last N lines (encoding-aware) |
+| `read` | 带编码检测地读取文件 |
+| `write` | 原子写文件 |
+| `edit` | 按字节查找替换，保持编码不变 |
+| `grep` | 编码感知的搜索 |
+| `stat` | 文件元数据（大小、修改时间、编码、锁状态） |
+| `lock` | 锁诊断（独占 + 可删除） |
+| `ls` | 列目录 |
+| `hash` | 计算校验和 |
+| `rm` | 删除（默认进回收站） |
+| `tail` | 读取末尾 N 行（编码感知） |
 
-### Environment Variables
+### 环境变量
 
-| Command | Purpose |
+| 命令 | 用途 |
 |---|---|
-| `env get` | Get variable value (with expansion) |
-| `env set` | Set variable (registry + broadcast) |
-| `env list` | List variables (sensitive values masked) |
-| `env unset` | Delete variable |
+| `env get` | 读取变量值（带展开） |
+| `env set` | 设置变量（注册表 + 广播） |
+| `env list` | 列出变量（敏感值脱敏） |
+| `env unset` | 删除变量 |
 
-### Backup & MCP
+### 备份与 MCP
 
-| Command | Purpose |
+| 命令 | 用途 |
 |---|---|
-| `backup list` | List backups |
-| `backup restore` | Restore from backup |
-| `backup prune` | Clean old backups |
-| `mcp serve` | Start MCP stdio server |
-| `mcp install` | Install MCP config for client |
+| `backup list` | 列出备份 |
+| `backup restore` | 从备份恢复 |
+| `backup prune` | 清理旧备份 |
+| `mcp serve` | 启动 MCP stdio 服务器 |
+| `mcp install` | 为 AI 客户端安装 MCP 配置 |
 
-### Upgrade & Version Management
+### 升级与版本管理
 
-| Command | Purpose |
+| 命令 | 用途 |
 |---|---|
-| `upgrade` | Upgrade to latest version (auto-cleanup old versions) |
-| `upgrade --check` | Check for updates without installing |
-| `upgrade --list` | List all installed versions |
-| `upgrade --use <version>` | Switch to specific installed version |
-| `upgrade --cleanup` | Manually remove old versions (keeps last 3) |
+| `upgrade` | 升级到最新版本（自动清理旧版本） |
+| `upgrade --check` | 只检查更新，不安装 |
+| `upgrade --list` | 列出所有已安装版本 |
+| `upgrade --use <version>` | 切换到指定已安装版本 |
+| `upgrade --cleanup` | 手动清理旧版本（保留最近 3 个） |
 
-## Security Model
+## 安全模型
 
-### Path Policy
+### 路径策略
 
-- **CWD allowed**: Current working directory is allowed by default
-- **System dirs denied**: `C:\Windows`, `C:\Program Files`, `.git/objects`, etc.
-- **Deny overrides allow**: Deny patterns are checked first and always win
-- **Symlink protection**: `EvalSymlinks` prevents escape from allowed dirs
+- **允许 CWD**：默认允许当前工作目录
+- **拒绝系统目录**：`C:\Windows`、`C:\Program Files`、`.git/objects` 等
+- **拒绝优先于允许**：拒绝规则先检查，永远获胜
+- **符号链接保护**：`EvalSymlinks` 防止从允许目录逃逸
 
-### Audit Journal
+### 审计日志
 
-All operations are logged to `~/.filex/journal/filex.jsonl`:
-- Timestamp, operation, path
-- SHA-256 before/after for write operations
-- Environment variable names (values hashed if sensitive)
-- Sensitive names: PASSWORD, SECRET, KEY, TOKEN, CREDENTIAL, PRIVATE, SIGNATURE
+所有操作都会记录到 `~/.filex/journal/filex.jsonl`：
+- 时间戳、操作、路径
+- 写操作记录前后的 SHA-256
+- 环境变量名（敏感值做哈希处理）
+- 敏感名称：PASSWORD、SECRET、KEY、TOKEN、CREDENTIAL、PRIVATE、SIGNATURE
 
-### Backup Strategy
+### 备份策略
 
-- Write operations with `--backup` create snapshot at `~/.filex/backups/`
-- Backup paths use SHA-256 hash of original path (privacy)
-- Default retention: 3 backups per file
-- `backup prune` cleans old backups
+- 带 `--backup` 的写操作会在 `~/.filex/backups/` 创建快照
+- 备份路径使用原路径的 SHA-256 哈希（保护隐私）
+- 默认保留策略：每个文件 3 份备份
+- `backup prune` 清理旧备份
 
-### Recycle Bin
+### 回收站
 
-- `rm` moves files to Windows recycle bin by default (recoverable)
-- `rm --purge` permanently deletes (use with caution)
-- `rm --dry-run` shows what would be deleted
+- `rm` 默认将文件移入 Windows 回收站（可恢复）
+- `rm --purge` 永久删除（谨慎使用）
+- `rm --dry-run` 预览将要删除的内容
 
-### MCP Profiles
+### MCP 配置文件
 
-- `ro` (default): read-only tools (read, grep, stat, lock, ls, tail, env get/list, backup list)
-- `rw`: all tools including write operations
+- `ro`（默认）：只读工具（read、grep、stat、lock、ls、tail、env get/list、backup list）
+- `rw`：全部工具，包括写操作
 
-## MCP Integration
+## MCP 集成
 
-filex provides an MCP (Model Context Protocol) server for AI client integration.
+filex 提供 MCP（Model Context Protocol）服务器，供 AI 客户端集成。
 
-### Start MCP server
+### 启动 MCP 服务器
 
 ```bash
 filex mcp serve --profile=ro
 ```
 
-### Install for AI clients
+### 为 AI 客户端安装
 
 ```bash
 # Claude Desktop
 filex mcp install --client=claude
 
-# Claude Code (CLI, user scope)
+# Claude Code（CLI，用户级）
 filex mcp install --client=claude-code
 
 # Codex CLI
@@ -306,7 +307,7 @@ filex mcp install --client=codex
 # Cursor
 filex mcp install --client=cursor
 
-# VS Code (user-level mcp.json)
+# VS Code（用户级 mcp.json）
 filex mcp install --client=vscode
 
 # Windsurf
@@ -316,42 +317,41 @@ filex mcp install --client=windsurf
 filex mcp install --client=zcode
 ```
 
-This writes the MCP configuration to the client's config directory. Add
-`--profile=rw` to register the read-write profile instead of the default
-read-only one:
+命令会把 MCP 配置写入对应客户端的配置目录。加上 `--profile=rw`
+可注册读写配置，替代默认的只读配置：
 
 ```bash
 filex mcp install --client=cursor --profile=rw
 ```
 
-### Available MCP tools
+### 可用的 MCP 工具
 
-11 tools mapped to filex operations:
-- `read`, `write`, `edit`, `grep`, `stat`, `lock`, `ls`, `rm`, `tail`
-- `backup` (actions: list, restore, prune)
-- `env` (actions: get, set, list, unset)
+11 个工具映射到 filex 操作：
+- `read`、`write`、`edit`、`grep`、`stat`、`lock`、`ls`、`rm`、`tail`
+- `backup`（动作：list、restore、prune）
+- `env`（动作：get、set、list、unset）
 
-Profile enforcement ensures `ro` clients cannot execute write operations.
+配置文件约束保证 `ro` 客户端无法执行写操作。
 
-## Agent Skill
+## Agent 技能
 
-Teach your coding agent when to prefer filex over its built-in tools
-(encoding traps, recoverable deletes, locked files, env scopes) with the
-distributable skill at [skills/filex/SKILL.md](skills/filex/SKILL.md):
+通过可分发技能 [skills/filex/SKILL.md](skills/filex/SKILL.md)，教会你的编码
+agent 何时该用 filex 而不是内置工具（编码陷阱、可恢复删除、文件被锁、环境
+变量作用域）：
 
 ```bash
-# skills.sh installer — detects 70+ agents and picks the right directory
+# skills.sh 安装器——自动识别 70+ 种 agent 并选择正确的目录
 npx skills add BaixuanZhu/FileX
 ```
 
-Or copy the `skills/filex/` folder into your agent's skills directory
-(`~/.agents/skills/`, `~/.zcode/skills/`, or `~/.claude/skills/`).
+也可以手动把 `skills/filex/` 目录复制到你的 agent 技能目录
+（`~/.agents/skills/`、`~/.zcode/skills/` 或 `~/.claude/skills/`）。
 
-## Output Format
+## 输出格式
 
-All commands output JSON envelope:
+所有命令输出 JSON 信封：
 
-**Success**:
+**成功**：
 ```json
 {
   "success": true,
@@ -359,7 +359,7 @@ All commands output JSON envelope:
 }
 ```
 
-**Error**:
+**失败**：
 ```json
 {
   "success": false,
@@ -372,60 +372,60 @@ All commands output JSON envelope:
 }
 ```
 
-Exit codes:
-- `0`: success
-- `1`: operation error
-- `2`: usage error
+退出码：
+- `0`：成功
+- `1`：操作错误
+- `2`：用法错误
 
-## Development
+## 开发
 
-### Build
+### 构建
 
 ```bash
 go build ./cmd/filex
 ```
 
-### Test
+### 测试
 
 ```bash
-# Unit tests (safe to run locally)
+# 单元测试（本地运行安全）
 go test ./...
 
-# Integration tests (env var registry operations)
-# WARNING: These modify Windows registry. Run only in CI or VM.
+# 集成测试（环境变量注册表操作）
+# 警告：会修改 Windows 注册表，仅在 CI 或虚拟机中运行
 go test -tags=integration ./internal/winenv/...
 ```
 
-### Project Structure
+### 项目结构
 
 ```
 filex/
-├── cmd/filex/           # CLI entry point
+├── cmd/filex/           # CLI 入口
 ├── internal/
-│   ├── ops/             # Operation implementations
-│   ├── encoding/        # BOM detection, GBK, UTF-16
-│   ├── policy/          # Path whitelist, deny rules
-│   ├── journal/         # JSONL audit log
-│   ├── errs/            # Error codes + hints
-│   ├── mcpserver/       # MCP tool schemas
-│   ├── version/         # JVM-style version management
-│   ├── winenv/          # Windows registry, broadcast
-│   ├── winfs/           # Windows filesystem operations
-│   └── backup/          # Backup storage, restore
+│   ├── ops/             # 操作实现
+│   ├── encoding/        # BOM 检测、GBK、UTF-16
+│   ├── policy/          # 路径白名单、拒绝规则
+│   ├── journal/         # JSONL 审计日志
+│   ├── errs/            # 错误码 + 提示
+│   ├── mcpserver/       # MCP 工具 schema
+│   ├── version/         # JVM 风格版本管理
+│   ├── winenv/          # Windows 注册表、广播
+│   ├── winfs/           # Windows 文件系统操作
+│   └── backup/          # 备份存储、恢复
 ├── scripts/
-│   ├── filex.bat        # Windows wrapper script
-│   └── filex.sh         # Unix wrapper script
+│   ├── filex.bat        # Windows 包装脚本
+│   └── filex.sh         # Unix 包装脚本
 ├── skills/
 │   └── filex/
-│       └── SKILL.md     # Distributable agent skill
-├── install.ps1          # Windows installation script
-└── install.sh           # Unix installation script
+│       └── SKILL.md     # 可分发的 agent 技能
+├── install.ps1          # Windows 安装脚本
+└── install.sh           # Unix 安装脚本
 ```
 
-## License
+## 许可证
 
 MIT
 
-## Contributing
+## 参与贡献
 
-This project follows the Trellis development workflow. See `.trellis/workflow.md` for details.
+本项目遵循 Trellis 开发工作流，详见 `.trellis/workflow.md`。

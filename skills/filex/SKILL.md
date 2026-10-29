@@ -1,18 +1,17 @@
 ---
 name: filex
-description: Encoding-aware, recoverable file operations on Windows via the filex CLI. Detects and preserves GBK, GB18030, UTF-16 and BOM encodings across read/write/edit/grep/tail, so non-UTF-8 files never turn into mojibake (乱码). Deletes go to the recycle bin by default, every change is journaled with backup and one-command restore, locked files can be diagnosed ("file in use", 删不掉), and environment variables can be set persistently in user or machine scope with change broadcast. Use it whenever a file might not be UTF-8, a deletion should be recoverable, rm fails because something holds the file, or PATH/registry env vars must change on Windows — even if the user never mentions encoding. For plain UTF-8 files prefer the agent's built-in Read/Edit tools.
+description: 面向 Windows 的编码感知、可恢复文件操作 CLI 工具。read/write/edit/grep/tail 自动检测并保持 GBK、GB18030、UTF-16、BOM 编码，非 UTF-8 文件不会被写成乱码；rm 默认进回收站随时可找回，每次修改都有审计日志、备份与一键恢复；lock 命令诊断文件被哪个进程占用（文件正在使用 / file in use / 删不掉）；env 命令持久修改用户级/系统级环境变量并广播生效。凡遇到文件可能不是 UTF-8、删除需要可撤销、rm 因文件被占用而失败、需要修改 PATH 或注册表环境变量的场景，都应使用本技能——即使用户没有提到编码问题。纯 UTF-8 文件的简单读写请继续使用内置 Read/Edit 工具。
 ---
 
-# FileX — Deterministic File Operations for AI Agents
+# FileX — 面向 AI Agent 的确定性文件操作
 
-`filex` is a single static binary that wraps file I/O with encoding
-detection, an audit journal, and backups. Every command outputs JSON, and
-destructive behavior (bypassing the recycle bin, overwriting without backup)
-is always opt-in via an explicit flag.
+`filex` 是一个单一静态二进制，为文件 I/O 封装了编码检测、审计日志与备份。
+所有命令输出 JSON；破坏性行为（绕过回收站、无备份覆盖）必须通过显式
+旗标开启，绝不默认发生。
 
-## Step 0 — Install the binary
+## 第 0 步 — 安装二进制
 
-This skill needs the `filex` CLI on PATH. If `filex version` fails, install it:
+本技能依赖 PATH 上的 `filex` CLI。如果 `filex version` 失败，先安装：
 
 ```powershell
 # Windows (PowerShell)
@@ -24,94 +23,93 @@ irm https://raw.githubusercontent.com/BaixuanZhu/FileX/main/install.ps1 | iex
 curl -fsSL https://raw.githubusercontent.com/BaixuanZhu/FileX/main/install.sh | bash
 ```
 
-Upgrades are self-managed: `filex upgrade --yes` (keeps the last 3 versions).
-Alternatives (installer EXE, pre-built archives, `go install`) are documented
-in the [FileX README](https://github.com/BaixuanZhu/FileX#installation).
+升级自管理：`filex upgrade --yes`（保留最近 3 个版本）。其他安装方式
+（安装器 EXE、预构建归档、`go install`）见
+[FileX README](https://github.com/BaixuanZhu/FileX#安装)。
 
-## Optional — register the MCP server
+## 可选 — 注册 MCP 服务器
 
-To expose filex as MCP tools in an AI client instead of shell commands:
+想把 filex 以 MCP 工具形式接入 AI 客户端而非 shell 命令时：
 
 ```bash
 filex mcp install --client=<claude|claude-code|codex|cursor|vscode|windsurf|zcode> [--profile=rw]
 ```
 
-The default `ro` profile exposes read-only tools; `rw` adds write/edit/rm.
+默认 `ro` 配置只暴露只读工具；`rw` 增加 write/edit/rm。
 
-## When to Use FileX
+## 何时使用 FileX
 
-| Scenario | Command | Why |
+| 场景 | 命令 | 原因 |
 |---|---|---|
-| Encoding uncertain (GBK, UTF-16, BOM) | `filex read/write/edit` | Built-in tools assume UTF-8 |
-| Delete file/directory | `filex rm` | Default: recycle bin (recoverable) |
-| File won't delete (lock?) | `filex lock` | Reports exclusive/deletable status |
-| Modify environment variables | `filex env` | Registry + broadcast + 3 scopes |
-| Large file tail/grep | `filex tail` / `filex grep --stream` | Memory-efficient, encoding-aware |
-| Need audit/rollback | Any op with `--backup` | Journal + backup at `~/.filex/` |
-| UTF-8, simple read/edit | Built-in `Read`/`Edit` | Faster, less context |
+| 编码不确定（GBK、UTF-16、BOM） | `filex read/write/edit` | 内置工具假定 UTF-8 |
+| 删除文件/目录 | `filex rm` | 默认进回收站（可恢复） |
+| 文件删不掉（被锁？） | `filex lock` | 报告独占/可删除状态 |
+| 修改环境变量 | `filex env` | 注册表 + 广播 + 3 种作用域 |
+| 大文件 tail/grep | `filex tail` / `filex grep --stream` | 省内存、编码感知 |
+| 需要审计/回滚 | 任意操作加 `--backup` | 日志 + 备份在 `~/.filex/` |
+| UTF-8、简单读写 | 内置 `Read`/`Edit` | 更快、占用上下文更少 |
 
-## Commands
+## 命令
 
-**File**: `read` `write` `edit` `grep` `stat` `lock` `ls` `hash` `rm` `tail`
-**Env**: `env get|set|list|unset` (scopes: process|user|machine)
-**Backup**: `backup list|restore|prune`
-**MCP**: `mcp serve [--profile=ro|rw]` `mcp install --client=<client> [--profile=ro|rw]`
-**Upgrade**: `upgrade [--check] [--yes]`
+**文件**：`read` `write` `edit` `grep` `stat` `lock` `ls` `hash` `rm` `tail`
+**环境变量**：`env get|set|list|unset`（作用域：process|user|machine）
+**备份**：`backup list|restore|prune`
+**MCP**：`mcp serve [--profile=ro|rw]` `mcp install --client=<client> [--profile=ro|rw]`
+**升级**：`upgrade [--check] [--yes]`
 
-## Key Flags
+## 关键旗标
 
-- `--encoding=auto|utf8|utf8bom|gbk|gb18030|utf16le|utf16be` — force or detect encoding
-- `--backup` — snapshot before write/edit
-- `--expect-sha256=<hash>` — optimistic lock for concurrent edits
-- `--stream` — grep large files without loading all content
-- `--purge` — permanently delete (skip recycle bin)
-- `--scope=user|machine|process` — env var scope (Windows)
+- `--encoding=auto|utf8|utf8bom|gbk|gb18030|utf16le|utf16be` — 强制指定或自动检测编码
+- `--backup` — 写/编辑前先做快照
+- `--expect-sha256=<hash>` — 乐观锁，防并发覆盖
+- `--stream` — 流式 grep 大文件，不整载内存
+- `--purge` — 永久删除（跳过回收站）
+- `--scope=user|machine|process` — 环境变量作用域（Windows）
 
-## Examples
+## 示例
 
 ```bash
-# Edit a GBK config file, keeping a rollback snapshot
+# 编辑 GBK 编码的配置文件，并保留回滚快照
 filex edit config.ini --find="old" --replace="new" --encoding=gbk --backup
 
-# Safe delete, then undo if needed
+# 安全删除，需要时可撤销
 filex rm old.txt --yes
 filex backup list
 filex backup restore <backup-id>
 
-# Tail a huge log without loading it
+# 不加载整个大文件直接看末尾
 filex tail app.log --lines=50
 
-# Set a user-scope environment variable (persists, broadcasts the change)
+# 设置用户级环境变量（持久化并广播生效）
 filex env set NODE_ENV production --scope=user
 
-# Upgrade to the latest release
+# 升级到最新版本
 filex upgrade --yes
 ```
 
-## Safety Model
+## 安全模型
 
-- **Path policy**: CWD allowed; system dirs denied (Windows, Program Files,
-  `.git/objects`); deny patterns always win over allow
-- **Journal**: every operation is appended to `~/.filex/journal/filex.jsonl`
-  with SHA-256 before/after and sensitive-value masking
-- **Deletes** go to the recycle bin unless `--purge` is passed
+- **路径策略**：允许 CWD；拒绝系统目录（Windows、Program Files、
+  `.git/objects`）；拒绝规则永远优先于允许规则
+- **审计日志**：每个操作追加到 `~/.filex/journal/filex.jsonl`，记录前后的
+  SHA-256，敏感值脱敏
+- **删除**默认进回收站，除非显式传 `--purge`
 
-## Output Format
+## 输出格式
 
-All output is JSON: `{"success": true, "data": {...}}` or
-`{"success": false, "error": {"code": "...", "message": "...", "hint": "..."}}`.
-Exit codes: 0 = success, 1 = operation error, 2 = usage error.
+所有输出都是 JSON：`{"success": true, "data": {...}}` 或
+`{"success": false, "error": {"code": "...", "message": "...", "hint": "..."}}`。
+退出码：0 = 成功，1 = 操作错误，2 = 用法错误。
 
 ---
 
-## Installing this skill (for humans)
+## 安装本技能（写给人类读者）
 
 ```bash
-# skills.sh installer — detects 70+ agents and picks the right directory
+# skills.sh 安装器——自动识别 70+ 种 agent 并选择正确的目录
 npx skills add BaixuanZhu/FileX
 ```
 
-Or copy the `skills/filex/` folder from the
-[FileX repo](https://github.com/BaixuanZhu/FileX) into your agent's skills
-directory: `~/.agents/skills/` (cross-agent), `~/.zcode/skills/` (ZCode), or
-`~/.claude/skills/` (Claude Code).
+或者从 [FileX 仓库](https://github.com/BaixuanZhu/FileX) 把 `skills/filex/`
+目录复制到你的 agent 技能目录：`~/.agents/skills/`（跨 agent 通用）、
+`~/.zcode/skills/`（ZCode）或 `~/.claude/skills/`（Claude Code）。
