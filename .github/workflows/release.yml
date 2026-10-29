@@ -188,16 +188,24 @@ jobs:
           
           Write-Host "Building installer for version $version..."
           
-          & $nsisPath -DVERSION=$version installer\filex.nsi
-          
-          if ($LASTEXITCODE -ne 0) {
-            Write-Error "NSIS build failed with exit code $LASTEXITCODE"
-            exit 1
+          # Run from installer/ because NSIS resolves script paths against the
+          # script's own directory; quote the define so $version expands instead
+          # of being passed through as a literal parameter name
+          Push-Location installer
+          try {
+            & $nsisPath "-DVERSION=$version" filex.nsi
+            if ($LASTEXITCODE -ne 0) {
+              Write-Error "NSIS build failed with exit code $LASTEXITCODE"
+              exit 1
+            }
+          }
+          finally {
+            Pop-Location
           }
           
-          if (Test-Path "filex-setup.exe") {
-            $size = (Get-Item "filex-setup.exe").Length / 1MB
-            Write-Host "✓ Installer built: filex-setup.exe ($([math]::Round($size, 2)) MB)" -ForegroundColor Green
+          if (Test-Path "installer\filex-setup.exe") {
+            $size = (Get-Item "installer\filex-setup.exe").Length / 1MB
+            Write-Host "✓ Installer built: installer\filex-setup.exe ($([math]::Round($size, 2)) MB)" -ForegroundColor Green
           } else {
             Write-Error "Installer file not found"
             exit 1
@@ -207,7 +215,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: filex-installer-windows
-          path: filex-setup.exe
+          path: installer\filex-setup.exe
           retention-days: 7
 
   test-installer:

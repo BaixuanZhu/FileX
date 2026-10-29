@@ -7,6 +7,9 @@
 *.a
 *.lib
 
+# Installer build input unpacked from the release archive
+installer/bundled/
+
 # Test binary
 *.test
 

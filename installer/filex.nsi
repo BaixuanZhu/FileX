@@ -51,9 +51,9 @@ Section "Core Files" SecCore
   ; Set output directory
   SetOutPath "$INSTDIR\versions\v${VERSION}"
   
-  ; Copy bundled files (extracted from ZIP in CI); path is relative to the
-  ; directory makensis is invoked from (repository root)
-  File /r "installer\bundled\*.*"
+  ; Copy bundled files (extracted from ZIP in CI); NSIS resolves File paths
+  ; relative to this script's directory
+  File /r "bundled\*.*"
   
   ; Switch to install directory
   SetOutPath "$INSTDIR"
@@ -177,71 +177,6 @@ Function AddToUserPath
   Pop $0
 FunctionEnd
 
-; Function to remove directory from user PATH
-Function RemoveFromUserPath
-  Push $0
-  Push $1
-  Push $2
-  
-  ReadRegStr $0 HKCU "Environment" "PATH"
-  
-  ; Remove various forms of the path
-  ; Path with semicolon before: ;C:\path
-  Push "$INSTDIR"
-  Push ";$0"
-  Call StrStr
-  Pop $1
-  StrCmp $1 "" 0 RemoveWithBefore
-  
-  ; Path with semicolon after: C:\path;
-  Push "$INSTDIR"
-  Push "$0;"
-  Call StrStr
-  Pop $1
-  StrCmp $1 "" 0 RemoveWithAfter
-  
-  ; Path alone: C:\path
-  Push "$INSTDIR"
-  Push "$0"
-  Call StrStr
-  Pop $1
-  StrCmp $1 "" Done
-  
-  ; Remove path alone
-  Push "$0"
-  Push "$INSTDIR"
-  Push ""
-  Call StrRep
-  Pop $0
-  Goto WriteNewPath
-  
-  RemoveWithBefore:
-  Push "$0"
-  Push ";$INSTDIR"
-  Push ""
-  Call StrRep
-  Pop $0
-  Goto WriteNewPath
-  
-  RemoveWithAfter:
-  Push "$0"
-  Push "$INSTDIR;"
-  Push ""
-  Call StrRep
-  Pop $0
-  
-  WriteNewPath:
-  WriteRegExpandStr HKCU "Environment" "PATH" $0
-  
-  ; Broadcast WM_SETTINGCHANGE
-  SendMessage ${HWND_BROADCAST} ${WM_SETTINGCHANGE} 0 "STR:Environment" /TIMEOUT=5000
-  
-  Done:
-  Pop $2
-  Pop $1
-  Pop $0
-FunctionEnd
-
 ; Helper function: Find substring in string
 ; Input: Stack[0] = haystack, Stack[1] = needle
 ; Output: Stack[0] = result (empty if not found)
@@ -277,51 +212,6 @@ Function StrStr
   StrCpy $R0 ""
   
   StrStrDone:
-  Pop $R5
-  Pop $R4
-  Pop $R3
-  Pop $R2
-  Pop $R1
-  Exch $R0
-FunctionEnd
-
-; Helper function: Replace substring in string
-; Input: Stack[0] = haystack, Stack[1] = needle, Stack[2] = replacement
-; Output: Stack[0] = result
-Function StrRep
-  Exch $R0 ; replacement
-  Exch
-  Exch $R1 ; needle
-  Exch 2
-  Exch $R2 ; haystack
-  Push $R3
-  Push $R4
-  Push $R5
-  Push $R6
-  
-  StrCpy $R3 ""
-  StrLen $R4 $R1
-  
-  StrRepLoop:
-  StrCpy $R5 $R2 $R4
-  StrCmp $R5 $R1 0 StrRepNoMatch
-  StrCpy $R5 $R2 "" $R4
-  StrCpy $R3 "$R3$R0"
-  StrCpy $R2 $R5
-  StrLen $R4 $R1
-  Goto StrRepLoop
-  
-  StrRepNoMatch:
-  StrCmp $R2 "" StrRepDone 0
-  StrCpy $R5 $R2 1
-  StrCpy $R3 "$R3$R5"
-  StrCpy $R2 $R2 "" 1
-  Goto StrRepLoop
-  
-  StrRepDone:
-  StrCpy $R0 $R3
-  
-  Pop $R6
   Pop $R5
   Pop $R4
   Pop $R3
