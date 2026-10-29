@@ -204,9 +204,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Test Windows installation
-        if: always()
-        runs-on: windows-latest
+  test-windows:
+    name: Test Windows Installation
+    needs: create-release
+    runs-on: windows-latest
+    if: always()
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Test install.ps1
         shell: pwsh
         run: |
           Write-Host "=== Testing install.ps1 ===" -ForegroundColor Cyan
