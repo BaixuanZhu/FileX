@@ -3,7 +3,7 @@
   "name": "filex-m2",
   "title": "M2: file ops (stat/lock/ls/hash/write/rm) + backup strategy",
   "description": "Implement winfs (long paths, lock detection, atomic replace), filex stat/lock/ls/hash/write/rm, backup module (snapshot/restore/prune). Deliverable: atomic write survives mid-write kill; backup restore recovers original hash.",
-  "status": "done",
+  "status": "completed",
   "dev_type": null,
   "scope": null,
   "package": null,
