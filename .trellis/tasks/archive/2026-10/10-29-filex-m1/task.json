@@ -3,7 +3,7 @@
   "name": "filex-m1",
   "title": "M1: encoding kernel (BOM detect + byte-level edit) + conformance tests",
   "description": "Implement BOM detection, encoding chain (UTF-8/GBK/GB18030/UTF-16), byte-level edit core, filex read, filex edit. Deliverable: encoding matrix tests pass, edit preserves all bytes outside target range.",
-  "status": "done",
+  "status": "completed",
   "dev_type": null,
   "scope": null,
   "package": null,
