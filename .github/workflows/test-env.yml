@@ -5,11 +5,13 @@ on:
     branches: [main]
     paths:
       - 'internal/winenv/**'
+      - 'internal/version/**'
       - 'cmd/filex/**'
       - '.github/workflows/test-env.yml'
   pull_request:
     paths:
       - 'internal/winenv/**'
+      - 'internal/version/**'
       - 'cmd/filex/**'
       - '.github/workflows/test-env.yml'
   workflow_dispatch:
@@ -40,7 +42,7 @@ jobs:
       - name: Run env integration tests
         env:
           TEST_ENV_CI: '1'
-        run: go test -tags=integration ./internal/winenv/... ./cmd/filex/... -v -timeout=5m
+        run: go test -tags=integration ./internal/winenv/... ./internal/version/... ./cmd/filex/... -v -timeout=5m
 
       - name: Snapshot environment after tests
         if: always()
