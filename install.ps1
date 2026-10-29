@@ -84,13 +84,14 @@ function Install-FileX {
     # Get latest release
     $release = Get-LatestRelease
     $version = $release.tag_name
+    $versionNumber = $version -replace '^v', ''
     Write-Info "Latest version: $version"
     
-    # Find the binary asset (versioned name: filex-v0.1.1.exe)
-    $versionedBinaryName = "filex-$version.exe"
-    $asset = $release.assets | Where-Object { $_.name -eq $versionedBinaryName }
+    # Find the Windows ZIP archive
+    $archiveName = "filex-$version-windows-x64.zip"
+    $asset = $release.assets | Where-Object { $_.name -eq $archiveName }
     if (-not $asset) {
-        Write-Error "Binary asset '$versionedBinaryName' not found in release"
+        Write-Error "Archive asset '$archiveName' not found in release"
         exit 1
     }
     
@@ -102,9 +103,9 @@ function Install-FileX {
         Write-Info "Created install directory: $InstallDir"
     }
     
-    # Download binary (save as filex.exe for consistency)
-    $tempFile = Join-Path $env:TEMP $BinaryName
-    if (-not (Download-File -Url $downloadUrl -OutputPath $tempFile)) {
+    # Download archive
+    $tempArchive = Join-Path $env:TEMP $archiveName
+    if (-not (Download-File -Url $downloadUrl -OutputPath $tempArchive)) {
         exit 1
     }
     
@@ -113,9 +114,14 @@ function Install-FileX {
     $expectedChecksum = $null
     if ($checksumAsset) {
         $checksumFile = Join-Path $env:TEMP "checksums.txt"
-        if (Download-File -Url $checksumAsset.browser_download_url -OutputFile $checksumFile) {
+        if (Download-File -Url $checksumAsset.browser_download_url -OutputPath $checksumFile) {
             $checksumContent = Get-Content $checksumFile
-            $expectedChecksum = ($checksumContent -split "\s+")[0]
+            foreach ($line in $checksumContent) {
+                if ($line -match "^(\w+)\s+$archiveName$") {
+                    $expectedChecksum = $matches[1]
+                    break
+                }
+            }
             Remove-Item $checksumFile -Force
         }
     }
@@ -123,54 +129,111 @@ function Install-FileX {
     # Verify checksum if available
     if ($expectedChecksum) {
         Write-Info "Verifying checksum..."
-        $actualChecksum = (Get-FileHash -Path $tempFile -Algorithm SHA256).Hash.ToLower()
+        $actualChecksum = (Get-FileHash -Path $tempArchive -Algorithm SHA256).Hash.ToLower()
         if ($actualChecksum -ne $expectedChecksum) {
             Write-Error "Checksum mismatch!"
             Write-Error "Expected: $expectedChecksum"
             Write-Error "Actual: $actualChecksum"
-            Remove-Item $tempFile -Force
+            Remove-Item $tempArchive -Force
             exit 1
         }
         Write-Success "Checksum verified"
     }
     
-    # Install binary
-    $installPath = Join-Path $InstallDir $BinaryName
-    
-    # Backup existing installation
-    if (Test-Path $installPath) {
-        $backupPath = "$installPath.backup"
-        Move-Item -Path $installPath -Destination $backupPath -Force
-        Write-Info "Backed up existing installation"
+    # Extract archive to temporary directory
+    $tempExtractDir = Join-Path $env:TEMP "filex-extract-$versionNumber"
+    if (Test-Path $tempExtractDir) {
+        Remove-Item $tempExtractDir -Recurse -Force
     }
     
-    # Move new binary to install location
+    Write-Info "Extracting archive..."
     try {
-        Move-Item -Path $tempFile -Destination $installPath -Force
-        Write-Success "Installed to $installPath"
+        Expand-Archive -Path $tempArchive -DestinationPath $tempExtractDir
     }
     catch {
-        Write-Error "Failed to install: $_"
-        # Restore backup if it exists
-        if (Test-Path "$installPath.backup") {
-            Move-Item -Path "$installPath.backup" -Destination $installPath -Force
-            Write-Info "Restored previous installation"
-        }
+        Write-Error "Failed to extract archive: $_"
+        Remove-Item $tempArchive -Force
+        exit 1
+    }
+    Remove-Item $tempArchive -Force
+    
+    # Find extracted directory
+    $extractedDir = Get-ChildItem -Path $tempExtractDir -Directory | Select-Object -First 1
+    if (-not $extractedDir) {
+        Write-Error "Extracted directory not found"
+        Remove-Item $tempExtractDir -Recurse -Force
         exit 1
     }
     
-    # Add to PATH
-    Add-ToPath -Directory $InstallDir
-    
-    # Clean up backup
-    if (Test-Path "$installPath.backup") {
-        Remove-Item "$installPath.backup" -Force
+    # Create versioned directory structure
+    $versionDir = Join-Path $InstallDir "versions\v$versionNumber"
+    if (Test-Path $versionDir) {
+        Remove-Item $versionDir -Recurse -Force
     }
+    New-Item -ItemType Directory -Path $versionDir -Force | Out-Null
+    
+    # Move binary and docs
+    Write-Info "Installing to $versionDir..."
+    Move-Item -Path (Join-Path $extractedDir.FullName $BinaryName) -Destination $versionDir -Force
+    if (Test-Path (Join-Path $extractedDir.FullName "docs")) {
+        Copy-Item -Path (Join-Path $extractedDir.FullName "docs") -Destination $versionDir -Recurse -Force
+    }
+    if (Test-Path (Join-Path $extractedDir.FullName "README.md")) {
+        Copy-Item -Path (Join-Path $extractedDir.FullName "README.md") -Destination $versionDir -Force
+    }
+    if (Test-Path (Join-Path $extractedDir.FullName "LICENSE")) {
+        Copy-Item -Path (Join-Path $extractedDir.FullName "LICENSE") -Destination $versionDir -Force
+    }
+    
+    # Cleanup extraction directory
+    Remove-Item $tempExtractDir -Recurse -Force
+    
+    # Create current junction
+    $currentLink = Join-Path $InstallDir "current"
+    if (Test-Path $currentLink) {
+        # Remove existing junction
+        cmd /c rmdir "$currentLink" 2>$null
+        if (Test-Path $currentLink) {
+            Remove-Item $currentLink -Recurse -Force
+        }
+    }
+    
+    Write-Info "Creating current link..."
+    cmd /c mklink /J "$currentLink" "$versionDir" | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Failed to create junction"
+        exit 1
+    }
+    Write-Success "Current version linked"
+    
+    # Create wrapper script
+    $wrapperPath = Join-Path $InstallDir "filex.bat"
+    $wrapperContent = @"
+@echo off
+setlocal
+
+set FILEX_HOME=$InstallDir
+set FILEX_CURRENT=%FILEX_HOME%\current
+
+if not exist "%FILEX_CURRENT%\$BinaryName" (
+    echo Error: FileX current version not found
+    echo Please run: filex upgrade
+    exit /b 1
+)
+
+"%FILEX_CURRENT%\$BinaryName" %*
+"@
+    Set-Content -Path $wrapperPath -Value $wrapperContent -Encoding ASCII
+    Write-Success "Wrapper script created"
+    
+    # Add wrapper location to PATH
+    Add-ToPath -Directory $InstallDir
     
     # Verify installation
     Write-Info "Verifying installation..."
     try {
-        $versionOutput = & $installPath version 2>&1 | ConvertFrom-Json
+        $installedBinary = Join-Path $currentLink $BinaryName
+        $versionOutput = & $installedBinary version 2>&1 | ConvertFrom-Json
         if ($versionOutput.ok) {
             Write-Success "FileX $($versionOutput.data.version) installed successfully!"
         }
@@ -183,10 +246,24 @@ function Install-FileX {
     Write-Host ""
     Write-Success "Installation complete!"
     Write-Host ""
+    Write-Host "Installation structure:"
+    Write-Host "  $InstallDir\"
+    Write-Host "  ├── filex.bat (wrapper)"
+    Write-Host "  ├── current\ -> versions\v$versionNumber\"
+    Write-Host "  └── versions\"
+    Write-Host "      └── v$versionNumber\"
+    Write-Host "          ├── $BinaryName"
+    Write-Host "          ├── README.md"
+    Write-Host "          ├── LICENSE"
+    Write-Host "          └── docs\"
+    Write-Host ""
     Write-Host "Usage:"
     Write-Host "  filex help          Show help"
     Write-Host "  filex version       Show version"
     Write-Host "  filex upgrade       Upgrade to latest version"
+    Write-Host "  filex upgrade --list    List installed versions"
+    Write-Host "  filex upgrade --use v$versionNumber    Switch to version"
+    Write-Host "  filex upgrade --cleanup    Remove old versions"
     Write-Host ""
     Write-Host "Documentation: https://github.com/$RepoOwner/$RepoName"
     Write-Host ""

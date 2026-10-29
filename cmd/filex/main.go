@@ -6,9 +6,27 @@ import (
 
 	"filex/internal/buildinfo"
 	"filex/internal/errs"
+	"filex/internal/version"
 )
 
 func main() {
+	// Check if migration is needed
+	needsMigration, oldPath, migrationErr := version.NeedsMigration()
+	if migrationErr != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to check migration status: %v\n", migrationErr)
+	} else if needsMigration {
+		fmt.Println("Migrating from flat installation to versioned structure...")
+		if err := version.MigrateFromFlat(oldPath); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: migration failed: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Please run 'filex upgrade' to install the latest version\n")
+			os.Exit(1)
+		}
+		fmt.Println("Migration complete!")
+		fmt.Printf("Old binary at %s has been migrated to versioned structure\n", oldPath)
+		fmt.Println("Please restart your terminal or run 'filex upgrade' to get the latest version")
+		fmt.Println()
+	}
+
 	if len(os.Args) < 2 {
 		printUsage()
 		_ = errs.WriteFailure(os.Stdout, errs.New(errs.EUsage, "no verb provided"))
