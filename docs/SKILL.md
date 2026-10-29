@@ -1,6 +1,6 @@
-# filex — Deterministic File Operations for AI Agents
+# FileX — Deterministic File Operations for AI Agents
 
-## When to Use filex
+## When to Use FileX
 
 | Scenario | Command | Why |
 |---|---|---|

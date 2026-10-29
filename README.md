@@ -1,8 +1,8 @@
-# filex
+# FileX
 
 Deterministic file and environment variable operations for AI agents on Windows.
 
-## Why filex?
+## Why FileX?
 
 AI agents need reliable file operations that:
 - Preserve encoding (GBK, UTF-16, BOM) — not just UTF-8
@@ -10,7 +10,7 @@ AI agents need reliable file operations that:
 - Handle Windows-specific concerns (registry, locks, long paths)
 - Prevent dangerous operations (system dirs, concurrent overwrites)
 
-filex is a CLI tool that wraps these operations in a deterministic, JSON-output interface designed for programmatic consumption by AI models.
+FileX is a CLI tool that wraps these operations in a deterministic, JSON-output interface designed for programmatic consumption by AI models.
 
 ## Installation
 
