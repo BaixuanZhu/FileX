@@ -21,6 +21,6 @@
   "children": [],
   "parent": null,
   "relatedFiles": [],
-  "notes": "",
+  "notes": "v0.3.0 released with installer; CI test-installer gate green (silent install/verify/uninstall). Local manual test by user pending.",
   "meta": {}
 }
