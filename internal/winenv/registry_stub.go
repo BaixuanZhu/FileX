@@ -9,18 +9,37 @@ import (
 
 var errNotWindows = errors.New("windows registry operations not supported on " + runtime.GOOS)
 
-func GetEnv(name string) (string, error) {
-	return "", errNotWindows
+func ReadStringValue(s Scope, name string) (value string, kind ValueKind, err error) {
+	if s == ScopeProcess {
+		return "", KindSZ, errNotWindows
+	}
+	return "", 0, errNotWindows
 }
 
-func SetEnv(name, value string, scope Scope) error {
+func WriteStringValue(s Scope, name, value string, kind ValueKind) error {
 	return errNotWindows
 }
 
-func UnsetEnv(name string, scope Scope) error {
+func ReadKind(s Scope, name string) (ValueKind, error) {
+	return 0, errNotWindows
+}
+
+func DeleteValue(s Scope, name string) error {
 	return errNotWindows
 }
 
-func ListEnv(scope Scope) (map[string]string, error) {
-	return nil, errNotWindows
+func ReadAllStringValues(s Scope) (map[string]string, map[string]ValueKind, error) {
+	return nil, nil, errNotWindows
+}
+
+func IsElevated() bool {
+	return false
+}
+
+func NotifyEnvironmentChange() error {
+	return nil // No-op on non-Windows
+}
+
+func NotifyEnvironmentChangeTimeout(timeoutMillis uint32) error {
+	return nil // No-op on non-Windows
 }
