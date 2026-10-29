@@ -14,13 +14,21 @@ FileX is a CLI tool that wraps these operations in a deterministic, JSON-output 
 
 ## Installation
 
-### PowerShell (recommended)
+### PowerShell (Windows, recommended)
 
 ```powershell
 irm https://raw.githubusercontent.com/BaixuanZhu/FileX/main/install.ps1 | iex
 ```
 
-This downloads the latest release to `%LOCALAPPDATA%\FileX\` and adds it to your PATH.
+This downloads the latest release archive, extracts to `%LOCALAPPDATA%\FileX\versions\v{version}\`, creates a `current` junction, and adds the wrapper to your PATH.
+
+### Shell (Linux/macOS)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/BaixuanZhu/FileX/main/install.sh | bash
+```
+
+This downloads the latest release archive, extracts to `~/.filex/versions/v{version}/`, creates a `current` symlink, and adds the wrapper to your PATH.
 
 ### Go install (requires Go 1.26+)
 
@@ -28,9 +36,14 @@ This downloads the latest release to `%LOCALAPPDATA%\FileX\` and adds it to your
 go install github.com/BaixuanZhu/FileX/cmd/filex@latest
 ```
 
-### Pre-built binary
+### Pre-built archives
 
-Download `filex.exe` from [Releases](https://github.com/BaixuanZhu/FileX/releases) and add to your PATH.
+Download the platform-specific archive from [Releases](https://github.com/BaixuanZhu/FileX/releases):
+- `filex-v{version}-windows-x64.zip` (Windows)
+- `filex-v{version}-linux-x64.tar.gz` (Linux)
+- `filex-v{version}-darwin-x64.tar.gz` (macOS)
+
+Extract to your PATH. Each archive includes the binary, README, LICENSE, and docs.
 
 ### Build from source
 
@@ -41,8 +54,8 @@ $commit = git rev-parse --short HEAD
 $buildTime = Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ"
 go build -ldflags "-X filex/internal/buildinfo.Version=$version -X filex/internal/buildinfo.Commit=$commit -X filex/internal/buildinfo.BuildTime=$buildTime" -o filex.exe ./cmd/filex
 
-# Windows (Git Bash)
-go build -ldflags "-X filex/internal/buildinfo.Version=$(git describe --tags --always) -X filex/internal/buildinfo.Commit=$(git rev-parse --short HEAD) -X filex/internal/buildinfo.BuildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o filex.exe ./cmd/filex
+# Windows (Git Bash) / Unix
+go build -ldflags "-X filex/internal/buildinfo.Version=$(git describe --tags --always) -X filex/internal/buildinfo.Commit=$(git rev-parse --short HEAD) -X filex/internal/buildinfo.BuildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o filex ./cmd/filex
 ```
 
 ## Quick Start
@@ -113,20 +126,54 @@ filex tail app.log --lines=50
 filex grep "ERROR" --paths="*.log" --stream --max=100
 ```
 
-### Self-upgrade
+### Self-upgrade and Version Management
+
+FileX uses a JVM-style version management system where each version is installed to an isolated directory and a `current` link points to the active version.
 
 ```bash
 # Check if update is available
 filex upgrade --check
 
-# Upgrade to latest version
+# Upgrade to latest version (automatic cleanup of old versions)
 filex upgrade
 
 # Upgrade without confirmation prompt
 filex upgrade --yes
+
+# List all installed versions
+filex upgrade --list
+
+# Switch to a specific installed version
+filex upgrade --use v0.1.3
+
+# Manually clean up old versions (keeps last 3)
+filex upgrade --cleanup
 ```
 
-FileX checks [GitHub Releases](https://github.com/BaixuanZhu/FileX/releases) for the latest version, downloads it, verifies the checksum, and replaces the current executable. If the upgrade fails, it automatically restores the previous version.
+**How it works:**
+- Downloads platform-specific archive (ZIP for Windows, tar.gz for Unix)
+- Verifies SHA-256 checksum
+- Extracts to `~/.filex/versions/v{version}/` (or `%LOCALAPPDATA%\FileX\versions\v{version}\` on Windows)
+- Atomically switches `current` link to new version
+- Automatically removes old versions (keeps last 3)
+- Next invocation uses the new version automatically
+
+**Directory structure:**
+```
+~/.filex/                          # Linux/macOS
+%LOCALAPPDATA%\FileX\              # Windows
+├── versions/
+│   ├── v0.1.2/
+│   │   └── filex (or filex.exe)
+│   ├── v0.1.3/
+│   │   └── filex (or filex.exe)
+│   └── v0.2.0/
+│       └── filex (or filex.exe)
+└── current/                       # Symlink (Unix) or junction (Windows)
+    └── -> versions/v0.2.0/
+```
+
+**Migration:** If you have an existing flat installation, FileX will automatically migrate it to the versioned structure on first run.
 
 ## Command Reference
 
@@ -165,7 +212,16 @@ See [docs/SKILL.md](docs/SKILL.md) for complete command reference with examples.
 | `backup prune` | Clean old backups |
 | `mcp serve` | Start MCP stdio server |
 | `mcp install` | Install MCP config for client |
-| `upgrade` | Upgrade to latest version |
+
+### Upgrade & Version Management
+
+| Command | Purpose |
+|---|---|
+| `upgrade` | Upgrade to latest version (auto-cleanup old versions) |
+| `upgrade --check` | Check for updates without installing |
+| `upgrade --list` | List all installed versions |
+| `upgrade --use <version>` | Switch to specific installed version |
+| `upgrade --cleanup` | Manually remove old versions (keeps last 3) |
 
 ## Security Model
 
@@ -297,10 +353,17 @@ filex/
 │   ├── journal/         # JSONL audit log
 │   ├── errs/            # Error codes + hints
 │   ├── mcpserver/       # MCP tool schemas
+│   ├── version/         # JVM-style version management
 │   ├── winenv/          # Windows registry, broadcast
+│   ├── winfs/           # Windows filesystem operations
 │   └── backup/          # Backup storage, restore
-└── docs/
-    └── SKILL.md         # Model usage guide (<=60 lines)
+├── scripts/
+│   ├── filex.bat        # Windows wrapper script
+│   └── filex.sh         # Unix wrapper script
+├── docs/
+│   └── SKILL.md         # Model usage guide (<=60 lines)
+├── install.ps1          # Windows installation script
+└── install.sh           # Unix installation script
 ```
 
 ## License
