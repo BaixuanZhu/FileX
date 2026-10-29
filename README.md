@@ -14,7 +14,26 @@ FileX is a CLI tool that wraps these operations in a deterministic, JSON-output 
 
 ## Installation
 
-### PowerShell (Windows, recommended)
+### Windows Installer (Recommended)
+
+Download `filex-setup.exe` from [Releases](https://github.com/BaixuanZhu/FileX/releases) and run it.
+
+The installer will:
+- Install FileX to `%LOCALAPPDATA%\FileX`
+- Add FileX to your PATH
+- Create Start Menu shortcuts
+
+**Silent installation:**
+```cmd
+filex-setup.exe /S
+```
+
+**Custom directory:**
+```cmd
+filex-setup.exe /D=D:\Tools\FileX
+```
+
+### PowerShell (Windows, alternative)
 
 ```powershell
 irm https://raw.githubusercontent.com/BaixuanZhu/FileX/main/install.ps1 | iex

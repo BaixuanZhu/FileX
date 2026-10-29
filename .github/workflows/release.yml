@@ -118,9 +118,240 @@ jobs:
             filex-${{ steps.version.outputs.tag }}-${{ matrix.platform }}-x64.${{ matrix.archive_ext }}.sha256
           retention-days: 7
 
+  build-installer:
+    name: Build Windows Installer
+    needs: build
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Extract version from tag
+        id: version
+        shell: bash
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          VERSION=${TAG#v}
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Download Windows archive
+        uses: actions/download-artifact@v4
+        with:
+          name: filex-windows-x64
+          path: archive
+
+      - name: Extract archive
+        shell: pwsh
+        run: |
+          # The artifact contains the zip file itself, so expand it first
+          $zip = Get-ChildItem -Path archive -Filter "filex-*-windows-x64.zip" | Select-Object -First 1
+          if (-not $zip) {
+            Write-Error "Windows archive zip not found in artifact"
+            exit 1
+          }
+          Write-Host "Archive: $($zip.FullName)"
+          
+          Expand-Archive -Path $zip.FullName -DestinationPath "archive-extracted"
+          
+          # Create bundled directory for NSIS
+          New-Item -ItemType Directory -Path "installer\bundled" -Force | Out-Null
+          
+          # Copy contents (excluding the outer directory wrapper)
+          Copy-Item -Path "archive-extracted\$($zip.BaseName)\*" -Destination "installer\bundled\" -Recurse -Force
+          
+          Write-Host "Bundled contents:"
+          Get-ChildItem -Path "installer\bundled" -Recurse | Select-Object FullName
+
+      - name: Install NSIS
+        shell: pwsh
+        run: |
+          Write-Host "Installing NSIS..."
+          choco install nsis -y --no-progress
+          
+          # Verify installation
+          $nsisPath = "C:\Program Files (x86)\NSIS"
+          if (Test-Path $nsisPath) {
+            Write-Host "✓ NSIS installed to $nsisPath" -ForegroundColor Green
+            Get-ChildItem $nsisPath | Select-Object Name
+          } else {
+            Write-Error "NSIS installation failed"
+            exit 1
+          }
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $nsisPath = "C:\Program Files (x86)\NSIS\makensis.exe"
+          $version = "${{ steps.version.outputs.version }}"
+          
+          Write-Host "Building installer for version $version..."
+          
+          & $nsisPath -DVERSION=$version installer\filex.nsi
+          
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "NSIS build failed with exit code $LASTEXITCODE"
+            exit 1
+          }
+          
+          if (Test-Path "filex-setup.exe") {
+            $size = (Get-Item "filex-setup.exe").Length / 1MB
+            Write-Host "✓ Installer built: filex-setup.exe ($([math]::Round($size, 2)) MB)" -ForegroundColor Green
+          } else {
+            Write-Error "Installer file not found"
+            exit 1
+          }
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: filex-installer-windows
+          path: filex-setup.exe
+          retention-days: 7
+
+  test-installer:
+    name: Test Windows Installer
+    needs: build-installer
+    runs-on: windows-latest
+
+    steps:
+      - name: Download installer artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: filex-installer-windows
+
+      - name: Silent install
+        shell: pwsh
+        run: |
+          $installer = Join-Path $PWD "filex-setup.exe"
+          if (-not (Test-Path $installer)) {
+            Write-Error "Installer not found"
+            exit 1
+          }
+          
+          $process = Start-Process -FilePath $installer -ArgumentList "/S" -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            Write-Error "Installer exited with code $($process.ExitCode)"
+            exit 1
+          }
+          Write-Host "Installer completed successfully"
+
+      - name: Verify installation
+        shell: pwsh
+        run: |
+          $installDir = Join-Path $env:LOCALAPPDATA "FileX"
+          $failures = @()
+          
+          # Directory structure
+          foreach ($path in @(
+            "$installDir\filex.bat",
+            "$installDir\uninstaller.exe",
+            "$installDir\current\filex.exe",
+            "$installDir\versions"
+          )) {
+            if (Test-Path $path) {
+              Write-Host "OK: $path"
+            } else {
+              Write-Host "MISSING: $path"
+              $failures += $path
+            }
+          }
+          
+          # Registry keys
+          $regVersion = (Get-ItemProperty -Path "HKCU:\Software\FileX" -ErrorAction SilentlyContinue).Version
+          if ($regVersion) {
+            Write-Host "OK: registry version = $regVersion"
+          } else {
+            Write-Host "MISSING: HKCU\Software\FileX version"
+            $failures += "registry version"
+          }
+          
+          # PATH must contain the install directory
+          $userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
+          if ($userPath -like "*$installDir*") {
+            Write-Host "OK: PATH contains $installDir"
+          } else {
+            Write-Host "MISSING: PATH entry for $installDir (user PATH: $userPath)"
+            $failures += "PATH"
+          }
+          
+          # Wrapper must run the binary
+          try {
+            $versionOutput = & "$installDir\filex.bat" version 2>&1 | ConvertFrom-Json
+            if ($versionOutput.ok) {
+              Write-Host "OK: filex.bat version = $($versionOutput.data.version)"
+            } else {
+              Write-Host "FAILED: filex.bat returned ok=false"
+              $failures += "wrapper execution"
+            }
+          }
+          catch {
+            Write-Host "FAILED: cannot execute filex.bat: $_"
+            $failures += "wrapper execution"
+          }
+          
+          if ($failures.Count -gt 0) {
+            Write-Error "Installation verification failed: $($failures -join ', ')"
+            exit 1
+          }
+
+      - name: Silent uninstall
+        shell: pwsh
+        run: |
+          $installDir = Join-Path $env:LOCALAPPDATA "FileX"
+          $uninstaller = Join-Path $installDir "uninstaller.exe"
+          
+          $process = Start-Process -FilePath $uninstaller -ArgumentList "/S" -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            Write-Error "Uninstaller exited with code $($process.ExitCode)"
+            exit 1
+          }
+          Write-Host "Uninstaller completed successfully"
+
+      - name: Verify uninstallation
+        shell: pwsh
+        run: |
+          $installDir = Join-Path $env:LOCALAPPDATA "FileX"
+          $failures = @()
+          
+          if (Test-Path $installDir) {
+            Write-Host "LEFTOVER: $installDir still exists"
+            $failures += "install directory"
+          } else {
+            Write-Host "OK: install directory removed"
+          }
+          
+          $userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
+          if ($userPath -like "*$installDir*") {
+            Write-Host "LEFTOVER: PATH still contains $installDir"
+            $failures += "PATH"
+          } else {
+            Write-Host "OK: PATH entry removed"
+          }
+          
+          if (Get-ItemProperty -Path "HKCU:\Software\FileX" -ErrorAction SilentlyContinue) {
+            Write-Host "LEFTOVER: HKCU\Software\FileX"
+            $failures += "registry key"
+          } else {
+            Write-Host "OK: registry key removed"
+          }
+          
+          if (Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\FileX" -ErrorAction SilentlyContinue) {
+            Write-Host "LEFTOVER: uninstall registry key"
+            $failures += "uninstall registry key"
+          } else {
+            Write-Host "OK: uninstall registry key removed"
+          }
+          
+          if ($failures.Count -gt 0) {
+            Write-Error "Uninstallation verification failed: $($failures -join ', ')"
+            exit 1
+          }
+
   create-release:
     name: Create Release
-    needs: build
+    needs: [build, test-installer]
     runs-on: ubuntu-latest
     
     steps:
@@ -190,7 +421,13 @@ jobs:
             
             ## Installation
             
-            ### PowerShell (Windows)
+            ### Windows Installer (Recommended)
+            Download `filex-setup.exe` and run it. The installer will:
+            - Install FileX to `%LOCALAPPDATA%\FileX`
+            - Add FileX to your PATH
+            - Create Start Menu shortcuts
+            
+            ### PowerShell (Alternative)
             ```powershell
             irm https://raw.githubusercontent.com/BaixuanZhu/FileX/main/install.ps1 | iex
             ```
@@ -211,6 +448,7 @@ jobs:
           files: |
             artifacts/*/*.zip
             artifacts/*/*.tar.gz
+            artifacts/filex-installer-windows/filex-setup.exe
             checksums.txt
           draft: false
           prerelease: false
@@ -277,3 +515,115 @@ jobs:
           Write-Host "`n=== Installation test passed ===" -ForegroundColor Green
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Test installer
+        shell: pwsh
+        run: |
+          Write-Host "`n=== Testing filex-setup.exe ===" -ForegroundColor Cyan
+          
+          # Download installer from release
+          $tag = "${{ github.ref_name }}"
+          $installerUrl = "https://github.com/BaixuanZhu/FileX/releases/download/$tag/filex-setup.exe"
+          $installerPath = Join-Path $env:RUNNER_TEMP "filex-setup.exe"
+          
+          Write-Host "Downloading installer from $installerUrl..."
+          try {
+            Invoke-WebRequest -Uri $installerUrl -OutFile $installerPath -UseBasicParsing
+            Write-Host "✓ Installer downloaded" -ForegroundColor Green
+          }
+          catch {
+            Write-Error "✗ Failed to download installer: $_"
+            exit 1
+          }
+          
+          # Set up test install directory
+          $testInstallDir = Join-Path $env:RUNNER_TEMP "FileX-Installer-Test"
+          $env:LOCALAPPDATA = $testInstallDir
+          
+          Write-Host "Test install directory: $testInstallDir"
+          
+          # Run installer silently
+          try {
+            $process = Start-Process -FilePath $installerPath -ArgumentList "/S", "/D=$testInstallDir\FileX" -Wait -PassThru
+            if ($process.ExitCode -ne 0) {
+              Write-Error "✗ Installer exited with code $($process.ExitCode)"
+              exit 1
+            }
+            Write-Host "✓ Installer completed successfully" -ForegroundColor Green
+          }
+          catch {
+            Write-Error "✗ Installer failed: $_"
+            exit 1
+          }
+          
+          # Verify installation
+          $installedBat = Join-Path $testInstallDir "FileX\filex.bat"
+          if (-not (Test-Path $installedBat)) {
+            Write-Error "✗ Installed wrapper not found at $installedBat"
+            exit 1
+          }
+          Write-Host "✓ Wrapper installed to $installedBat" -ForegroundColor Green
+          
+          $installedExe = Join-Path $testInstallDir "FileX\current\filex.exe"
+          if (-not (Test-Path $installedExe)) {
+            Write-Error "✗ Installed binary not found at $installedExe"
+            exit 1
+          }
+          Write-Host "✓ Binary linked at $installedExe" -ForegroundColor Green
+          
+          # Test execution via wrapper
+          try {
+            $versionOutput = & $installedBat version 2>&1 | ConvertFrom-Json
+            if (-not $versionOutput.ok) {
+              Write-Error "✗ Binary execution via wrapper failed"
+              exit 1
+            }
+            Write-Host "✓ Binary version via wrapper: $($versionOutput.data.version)" -ForegroundColor Green
+          }
+          catch {
+            Write-Error "✗ Failed to execute binary via wrapper: $_"
+            exit 1
+          }
+          
+          # Verify PATH was updated
+          $userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
+          if ($userPath -like "*$testInstallDir\FileX*") {
+            Write-Host "✓ PATH updated correctly" -ForegroundColor Green
+          }
+          else {
+            Write-Warning "PATH may not have been updated (expected in test environment)"
+          }
+          
+          # Test uninstaller
+          $uninstaller = Join-Path $testInstallDir "FileX\uninstaller.exe"
+          if (Test-Path $uninstaller) {
+            Write-Host "✓ Uninstaller created" -ForegroundColor Green
+            
+            # Run uninstaller silently
+            try {
+              $process = Start-Process -FilePath $uninstaller -ArgumentList "/S" -Wait -PassThru
+              if ($process.ExitCode -eq 0) {
+                Write-Host "✓ Uninstaller completed successfully" -ForegroundColor Green
+                
+                # Verify removal
+                if (-not (Test-Path $installedBat)) {
+                  Write-Host "✓ Files removed" -ForegroundColor Green
+                }
+                else {
+                  Write-Warning "Some files may remain after uninstall"
+                }
+              }
+              else {
+                Write-Warning "Uninstaller exited with code $($process.ExitCode)"
+              }
+            }
+            catch {
+              Write-Warning "Uninstaller test failed: $_"
+            }
+          }
+          else {
+            Write-Error "✗ Uninstaller not found"
+            exit 1
+          }
+          
+          Write-Host "`n=== Installer test passed ===" -ForegroundColor Green
