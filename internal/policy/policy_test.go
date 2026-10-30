@@ -3,6 +3,7 @@ package policy_test
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"filex/internal/policy"
@@ -33,6 +34,9 @@ func TestCheckFileUnderCWD(t *testing.T) {
 }
 
 func TestCheckWindowsDenied(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows-specific path test")
+	}
 	cfg := policy.DefaultConfig()
 	result := policy.Check(`C:\Windows\System32\config`, cfg)
 	if result.Allowed {
@@ -41,6 +45,9 @@ func TestCheckWindowsDenied(t *testing.T) {
 }
 
 func TestCheckProgramFilesDenied(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows-specific path test")
+	}
 	cfg := policy.DefaultConfig()
 	result := policy.Check(`C:\Program Files\app\file.txt`, cfg)
 	if result.Allowed {
@@ -49,6 +56,9 @@ func TestCheckProgramFilesDenied(t *testing.T) {
 }
 
 func TestCheckGitObjectsDenied(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows-specific path test")
+	}
 	cfg := policy.DefaultConfig()
 	result := policy.Check(`C:\some\repo\.git\objects\ab\cdef`, cfg)
 	if result.Allowed {
@@ -57,6 +67,9 @@ func TestCheckGitObjectsDenied(t *testing.T) {
 }
 
 func TestCheckAllowedDirs(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows-specific path test")
+	}
 	cfg := policy.Config{
 		AllowedDirs:       []string{`D:\work`},
 		BackupBeforeWrite: true,
@@ -69,6 +82,9 @@ func TestCheckAllowedDirs(t *testing.T) {
 }
 
 func TestCheckOutsideAllowedDenied(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows-specific path test")
+	}
 	cfg := policy.Config{
 		AllowedDirs:       []string{`D:\work`},
 		BackupBeforeWrite: true,
@@ -81,6 +97,9 @@ func TestCheckOutsideAllowedDenied(t *testing.T) {
 }
 
 func TestMatchPattern(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows-specific path test")
+	}
 	cfg := policy.Config{
 		AllowedDirs:  []string{`C:\`},
 		DenyPatterns: []string{`Windows\**`},
@@ -93,7 +112,7 @@ func TestMatchPattern(t *testing.T) {
 
 	result = policy.Check(`C:\Users\test`, cfg)
 	if !result.Allowed {
-		t.Errorf("C:\\Users\\test should be allowed (not matching Windows\\**), got denied: %s", result.Reason)
+		t.Errorf("C\\Users\\test should be allowed (not matching Windows\\**), got denied: %s", result.Reason)
 	}
 
 	cfg2 := policy.Config{

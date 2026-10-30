@@ -8,6 +8,9 @@ import (
 )
 
 func TestCreateCurrentLink(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("requires Windows junction support and LOCALAPPDATA override")
+	}
 	// Create temporary directory for test
 	tempDir, err := os.MkdirTemp("", "filex-test-")
 	if err != nil {
@@ -17,16 +20,11 @@ func TestCreateCurrentLink(t *testing.T) {
 
 	// Override FileXHome for testing
 	originalHome := os.Getenv("LOCALAPPDATA")
-	if runtime.GOOS == "windows" {
-		os.Setenv("LOCALAPPDATA", tempDir)
-		defer os.Setenv("LOCALAPPDATA", originalHome)
-	}
+	os.Setenv("LOCALAPPDATA", tempDir)
+	defer os.Setenv("LOCALAPPDATA", originalHome)
 
 	// Create version directory
 	versionDir := filepath.Join(tempDir, "FileX", "versions", "v0.1.3")
-	if runtime.GOOS != "windows" {
-		versionDir = filepath.Join(tempDir, ".filex", "versions", "v0.1.3")
-	}
 	if err := os.MkdirAll(versionDir, 0755); err != nil {
 		t.Fatalf("Failed to create version dir: %v", err)
 	}
@@ -38,15 +36,15 @@ func TestCreateCurrentLink(t *testing.T) {
 
 	// Verify link exists
 	currentLink := filepath.Join(tempDir, "FileX", "current")
-	if runtime.GOOS != "windows" {
-		currentLink = filepath.Join(tempDir, ".filex", "current")
-	}
 	if _, err := os.Lstat(currentLink); err != nil {
 		t.Errorf("Current link not created: %v", err)
 	}
 }
 
 func TestRemoveCurrentLink(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("requires Windows junction support and LOCALAPPDATA override")
+	}
 	// Create temporary directory for test
 	tempDir, err := os.MkdirTemp("", "filex-test-")
 	if err != nil {
@@ -56,16 +54,11 @@ func TestRemoveCurrentLink(t *testing.T) {
 
 	// Override FileXHome for testing
 	originalHome := os.Getenv("LOCALAPPDATA")
-	if runtime.GOOS == "windows" {
-		os.Setenv("LOCALAPPDATA", tempDir)
-		defer os.Setenv("LOCALAPPDATA", originalHome)
-	}
+	os.Setenv("LOCALAPPDATA", tempDir)
+	defer os.Setenv("LOCALAPPDATA", originalHome)
 
 	// Create version directory and link
 	versionDir := filepath.Join(tempDir, "FileX", "versions", "v0.1.3")
-	if runtime.GOOS != "windows" {
-		versionDir = filepath.Join(tempDir, ".filex", "versions", "v0.1.3")
-	}
 	if err := os.MkdirAll(versionDir, 0755); err != nil {
 		t.Fatalf("Failed to create version dir: %v", err)
 	}
@@ -81,15 +74,15 @@ func TestRemoveCurrentLink(t *testing.T) {
 
 	// Verify link removed
 	currentLink := filepath.Join(tempDir, "FileX", "current")
-	if runtime.GOOS != "windows" {
-		currentLink = filepath.Join(tempDir, ".filex", "current")
-	}
 	if _, err := os.Lstat(currentLink); !os.IsNotExist(err) {
 		t.Errorf("Current link not removed")
 	}
 }
 
 func TestGetCurrentVersion(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("requires Windows junction support and LOCALAPPDATA override")
+	}
 	// Create temporary directory for test
 	tempDir, err := os.MkdirTemp("", "filex-test-")
 	if err != nil {
@@ -99,16 +92,11 @@ func TestGetCurrentVersion(t *testing.T) {
 
 	// Override FileXHome for testing
 	originalHome := os.Getenv("LOCALAPPDATA")
-	if runtime.GOOS == "windows" {
-		os.Setenv("LOCALAPPDATA", tempDir)
-		defer os.Setenv("LOCALAPPDATA", originalHome)
-	}
+	os.Setenv("LOCALAPPDATA", tempDir)
+	defer os.Setenv("LOCALAPPDATA", originalHome)
 
 	// Create version directory and link
 	versionDir := filepath.Join(tempDir, "FileX", "versions", "v0.1.3")
-	if runtime.GOOS != "windows" {
-		versionDir = filepath.Join(tempDir, ".filex", "versions", "v0.1.3")
-	}
 	if err := os.MkdirAll(versionDir, 0755); err != nil {
 		t.Fatalf("Failed to create version dir: %v", err)
 	}
@@ -128,6 +116,9 @@ func TestGetCurrentVersion(t *testing.T) {
 }
 
 func TestLinkExists(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("requires Windows junction support and LOCALAPPDATA override")
+	}
 	// Create temporary directory for test
 	tempDir, err := os.MkdirTemp("", "filex-test-")
 	if err != nil {
@@ -137,10 +128,8 @@ func TestLinkExists(t *testing.T) {
 
 	// Override FileXHome for testing
 	originalHome := os.Getenv("LOCALAPPDATA")
-	if runtime.GOOS == "windows" {
-		os.Setenv("LOCALAPPDATA", tempDir)
-		defer os.Setenv("LOCALAPPDATA", originalHome)
-	}
+	os.Setenv("LOCALAPPDATA", tempDir)
+	defer os.Setenv("LOCALAPPDATA", originalHome)
 
 	// Test when link doesn't exist
 	if LinkExists() {
@@ -149,9 +138,6 @@ func TestLinkExists(t *testing.T) {
 
 	// Create version directory and link
 	versionDir := filepath.Join(tempDir, "FileX", "versions", "v0.1.3")
-	if runtime.GOOS != "windows" {
-		versionDir = filepath.Join(tempDir, ".filex", "versions", "v0.1.3")
-	}
 	if err := os.MkdirAll(versionDir, 0755); err != nil {
 		t.Fatalf("Failed to create version dir: %v", err)
 	}
@@ -167,6 +153,9 @@ func TestLinkExists(t *testing.T) {
 }
 
 func TestGetInstalledVersions(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("requires Windows junction support and LOCALAPPDATA override")
+	}
 	// Create temporary directory for test
 	tempDir, err := os.MkdirTemp("", "filex-test-")
 	if err != nil {
@@ -176,18 +165,13 @@ func TestGetInstalledVersions(t *testing.T) {
 
 	// Override FileXHome for testing
 	originalHome := os.Getenv("LOCALAPPDATA")
-	if runtime.GOOS == "windows" {
-		os.Setenv("LOCALAPPDATA", tempDir)
-		defer os.Setenv("LOCALAPPDATA", originalHome)
-	}
+	os.Setenv("LOCALAPPDATA", tempDir)
+	defer os.Setenv("LOCALAPPDATA", originalHome)
 
 	// Create multiple version directories
 	versions := []string{"v0.1.1", "v0.1.2", "v0.1.3"}
 	for _, v := range versions {
 		versionDir := filepath.Join(tempDir, "FileX", "versions", v)
-		if runtime.GOOS != "windows" {
-			versionDir = filepath.Join(tempDir, ".filex", "versions", v)
-		}
 		if err := os.MkdirAll(versionDir, 0755); err != nil {
 			t.Fatalf("Failed to create version dir: %v", err)
 		}
