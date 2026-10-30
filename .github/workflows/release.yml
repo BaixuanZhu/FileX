@@ -314,10 +314,11 @@ jobs:
         shell: pwsh
         run: |
           # An explicit /D= must override the previous install location
+          # NSIS requires /D= to be unquoted and last; use a single string argument
           $installer = Get-ChildItem -Path $PWD -Filter "filex-v*-windows-x64.exe" | Select-Object -First 1
           $relocateDir = Join-Path $env:RUNNER_TEMP "FileX-Relocated"
           
-          $process = Start-Process -FilePath $installer.FullName -ArgumentList "/S", "/D=$relocateDir" -Wait -PassThru
+          $process = Start-Process -FilePath $installer.FullName -ArgumentList "/S /D=$relocateDir" -Wait -PassThru
           if ($process.ExitCode -ne 0) {
             Write-Error "Relocation install exited with code $($process.ExitCode)"
             exit 1
