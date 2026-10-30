@@ -20,8 +20,8 @@ func BackupList(filter string) (*BackupListResult, *errs.Error) {
 }
 
 type BackupRestoreResult struct {
-	Backup backup.BackupEntry `json:"backup"`
-	Restored string           `json:"restored"`
+	Backup   backup.BackupEntry `json:"backup"`
+	Restored string             `json:"restored"`
 }
 
 func BackupRestore(id string) (*BackupRestoreResult, *errs.Error) {

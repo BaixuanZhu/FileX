@@ -191,4 +191,3 @@ func runEnvUnset(args []string) *errs.Error {
 	}
 	return nil
 }
-

@@ -62,7 +62,7 @@ type Result struct {
 	Reason  string `json:"reason,omitempty"`
 }
 
-func Allowed() Result      { return Result{Allowed: true} }
+func Allowed() Result             { return Result{Allowed: true} }
 func Denied(reason string) Result { return Result{Allowed: false, Reason: reason} }
 
 func Check(path string, cfg Config) Result {

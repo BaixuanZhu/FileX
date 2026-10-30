@@ -10,6 +10,18 @@ import (
 	"filex/internal/winenv"
 )
 
+// TestMain pins this file to the isolated CI VM. Every test below changes the real
+// registry of whatever machine runs it, and -tags=integration is a flag a
+// developer can type, so the documented rule (docs/VERIFY.md: never run these
+// locally) needs a check here rather than only in prose.
+func TestMain(m *testing.M) {
+	if os.Getenv("GITHUB_ACTIONS") != "true" || os.Getenv("TEST_ENV_CI") != "1" {
+		fmt.Println("skipping registry integration tests: needs TEST_ENV_CI=1 on GitHub Actions, these write the real registry")
+		os.Exit(0)
+	}
+	os.Exit(m.Run())
+}
+
 func TestReadWriteUserScope(t *testing.T) {
 	name := fmt.Sprintf("FILEX_TEST_%d", os.Getpid())
 	defer func() { _ = winenv.DeleteValue(winenv.ScopeUser, name) }()

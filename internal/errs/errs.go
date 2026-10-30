@@ -11,16 +11,16 @@ const SchemaVersion = 1
 type Code string
 
 const (
-	EInternal     Code = "E_INTERNAL"
-	EUsage        Code = "E_USAGE"
-	EDenied       Code = "E_DENIED"
-	ELocked       Code = "E_LOCKED"
-	ENotFound     Code = "E_NOT_FOUND"
-	EConflict     Code = "E_CONFLICT"
-	EEncoding     Code = "E_ENCODING"
-	EIO           Code = "E_IO"
-	ETooLarge     Code = "E_TOO_LARGE"
-	EUnsupported  Code = "E_UNSUPPORTED"
+	EInternal    Code = "E_INTERNAL"
+	EUsage       Code = "E_USAGE"
+	EDenied      Code = "E_DENIED"
+	ELocked      Code = "E_LOCKED"
+	ENotFound    Code = "E_NOT_FOUND"
+	EConflict    Code = "E_CONFLICT"
+	EEncoding    Code = "E_ENCODING"
+	EIO          Code = "E_IO"
+	ETooLarge    Code = "E_TOO_LARGE"
+	EUnsupported Code = "E_UNSUPPORTED"
 )
 
 func (c Code) ExitCode() int {
@@ -101,10 +101,10 @@ func WithRetryable(err *Error, retryable bool) *Error {
 }
 
 type Envelope struct {
-	SchemaVersion int     `json:"schema_version"`
-	OK            bool    `json:"ok"`
-	Data          any     `json:"data,omitempty"`
-	Error         *Error  `json:"error,omitempty"`
+	SchemaVersion int    `json:"schema_version"`
+	OK            bool   `json:"ok"`
+	Data          any    `json:"data,omitempty"`
+	Error         *Error `json:"error,omitempty"`
 }
 
 func Success(data any) Envelope {

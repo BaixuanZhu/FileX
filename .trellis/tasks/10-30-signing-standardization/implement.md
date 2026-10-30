@@ -4,6 +4,7 @@
 
 - [x] A1 新增 `.github/workflows/ci.yml`：`go build` + `go vet` + `go test ./...`，matrix = ubuntu-latest + windows-latest，触发 = PR + push main。Go 版本钉 `1.26.5`。
       另加 `workflow_dispatch` 与 `concurrency` 取消旧跑；`permissions: contents: read` 为最小权限。
+      **新增（CI 缺口补全）**：`ci.yml` 增加 `Gofmt` job（仅 ubuntu-latest，因 Windows checkout 可能 CRLF 导致 gofmt 误报）与 `Test with race detector` job（`go test -race ./...`，仅 ubuntu-latest，因 Windows 需要 gcc）。`test-env.yml` 的 `paths` 过滤器扩展至 `internal/ops/**` / `internal/guard/**` / `internal/policy/**` / `internal/journal/**` / `internal/console/**` / `internal/mcpserver/**`，确保 guard 逻辑变更也会触发 CI 跑集成探针。
 - [x] A2 `Makefile` 的 `BUILD_TIME` 改为 `git show -s --format=%cI HEAD`，与 CI 对齐。
 - [x] A3 核对并统一仓库 URL：`release.yml:490`、`release.yml:584`、README × 2 中的 `BaixuanZhu/FileX`（已核实正确，只需确认无遗漏的其它 org 字样）。
       复查结论：workflow + README × 2 + 两个安装脚本里指向仓库的 URL 全部是 `github.com/BaixuanZhu/FileX`（7 处），另两处 `api.github.com/repos/...` 是安装脚本按 owner/name 变量拼的 API 地址，不是硬编码 org。
@@ -13,6 +14,7 @@
 **验证**：`gh pr create` 后 CI 通过；`make build` 产物与 CI 同 commit 产物哈希一致。
 **回滚点**：A1 为新增文件，删除即回滚。
 **状态**：A1–A4 代码/文件侧完成；**"CI 通过"这一半必须在 GitHub 上跑**，本轮边界内不做。
+**新增（CI 缺口补全）**：17 个已提交文件未通过 gofmt 检查（纯对齐问题），已执行 `gofmt -w` 规范化，确保 `ci.yml` 的 `Gofmt` job 能通过。
 
 ## 阶段 B — 可复现构建基线（S）
 

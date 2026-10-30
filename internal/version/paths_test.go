@@ -57,7 +57,7 @@ func TestCurrentLink(t *testing.T) {
 
 func TestVersionDir(t *testing.T) {
 	tests := []struct {
-		version  string
+		version    string
 		wantSuffix string
 	}{
 		{"0.1.3", "v0.1.3"},

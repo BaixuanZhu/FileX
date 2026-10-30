@@ -17,13 +17,13 @@ type ReadParams struct {
 }
 
 type ReadResult struct {
-	Content    string                `json:"content"`
+	Content    string                   `json:"content"`
 	Encoding   encoding.DetectionResult `json:"encoding"`
-	Size       int64                 `json:"size"`
-	Truncated  bool                  `json:"truncated,omitempty"`
-	StartLine  int                   `json:"start_line,omitempty"`
-	EndLine    int                   `json:"end_line,omitempty"`
-	TotalLines int                   `json:"total_lines,omitempty"`
+	Size       int64                    `json:"size"`
+	Truncated  bool                     `json:"truncated,omitempty"`
+	StartLine  int                      `json:"start_line,omitempty"`
+	EndLine    int                      `json:"end_line,omitempty"`
+	TotalLines int                      `json:"total_lines,omitempty"`
 }
 
 func Read(p ReadParams) (*ReadResult, *errs.Error) {

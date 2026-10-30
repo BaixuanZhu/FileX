@@ -23,10 +23,10 @@ type EditParams struct {
 }
 
 type EditResult struct {
-	DryRun       bool                   `json:"dry_run"`
-	Encoding    encoding.DetectionResult `json:"encoding"`
-	SHA256Before string               `json:"sha256_before,omitempty"`
-	SHA256After  string               `json:"sha256_after,omitempty"`
+	DryRun       bool                     `json:"dry_run"`
+	Encoding     encoding.DetectionResult `json:"encoding"`
+	SHA256Before string                   `json:"sha256_before,omitempty"`
+	SHA256After  string                   `json:"sha256_after,omitempty"`
 	encoding.EditResult
 }
 

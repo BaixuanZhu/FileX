@@ -84,12 +84,19 @@ GoReleaser。这三项属于父任务的签名阶段 C–G，需要在真实 rel
 |---|---|---|
 | guard 决策表（四类风险 × 有无终端 × 配置开关） | `internal/guard` 单测穷举 `Evaluate`（纯函数，无 I/O） | 只覆盖判定本身，不覆盖调用方是否真的调它 |
 | gate 在 ops 收敛点生效、决策链进审计 | `internal/ops` 单测（隔离 HOME，检查落盘 JSONL 字段） | 同上 |
+| **machine-scope env 拒绝前不触碰注册表** | `cmd/filex/env_gate_integration_test.go` 的 `TestProbeMachineScopeEnvDeniedWithoutTerminal`：CI 隔离 VM 中实跑，断言 exit 3 / `E_DENIED` / `machine_env_write` / 审计记录 / 注册表未变 | 只在 GitHub Actions 的 windows-latest 跑；本机因 `TEST_ENV_CI` 未设而跳过 |
+| **machine-scope 拒绝的审计字段精确** | `internal/ops/gate_test.go` 的 `TestDeniedMachineEnvWriteIsAudited`：单测断言 `op=env_set` / `scope=machine` / `env_name` / `guard_class` / `decision=deny` / `confirm_source=none` | 平台无关，本机可跑；但断言的是 ops 层行为，不是端到端二进制输出 |
+| user-scope env 非交互可写 | `cmd/filex/env_gate_integration_test.go` 的 `TestProbeUserScopeEnvRunsWithoutTerminal`：CI 隔离 VM 中实跑，断言 exit 0 / 审计记录无 `guard_class` / `filex env get` 回读一致 | 只在 CI 跑；本机跳过 |
 | **管道喂 `y` 无法自我授权** | `cmd/filex` 的 `-tags=integration` 探针：真二进制 + 管道 stdin + 临时 HOME | 探针跑在开发机与 CI 上；结论依赖"agent 只能通过管道给 stdin"这个前提 |
 | MCP 路径永远不可交互 | `internal/mcpserver` 单测（`tools/call` 走 `DenyConfirmer`） | 依赖宿主确实通过 stdio 而非终端启动 filex |
 | 审计新增字段向后兼容 | `internal/journal/compat_test.go` 断言旧记录逐字节不变 | 只覆盖已知消费字段 |
 | 旧格式日志仍可聚合 | `journal stats` 用固定 JSONL fixture（含损坏行、截断尾行、无 session 字段的旧行） | 真实日志形态多样，聚合的健壮性以实测为准 |
 | 安装器安装/卸载/重定位 | `release.yml` 的 `test-installer` / `test-windows` job | 只在 windows-latest 上验证 |
-| 写注册表的 env 集成测试 | `test-env.yml`，仅在 GitHub Actions 的隔离 Windows VM 执行 | **禁止在开发机运行**：这些测试改的是真实用户环境变量 |
+| 写注册表的 env 集成测试 | `test-env.yml`，仅在 GitHub Actions 的隔离 Windows VM 执行；`internal/winenv/registry_integration_test.go` 的 `TestMain` 在本机因 `TEST_ENV_CI` 未设而跳过 | **禁止在开发机运行**：这些测试改的是真实用户环境变量 |
+| `guard.enabled=false` 通过真实配置文件生效 | `cmd/filex/gate_integration_test.go` 的 `TestProbeGuardDisabledByConfigRunsPurge`：断言 exit 0 / 审计记录 `guard_class=disabled` / `decision=allow` / 无 bypass | 本机可跑；断言的是配置加载 + 决策链端到端行为 |
+| 损坏的配置文件不会禁用 guard | `cmd/filex/gate_integration_test.go` 的 `TestProbeBrokenConfigDoesNotDisableGuard`：断言 exit 3 / `purge_delete` 分类 | 本机可跑；断言的是 loader 回退到默认值 |
+| 无数据竞争 | `ci.yml` 的 `Test with race detector` job：`go test -race ./...` 在 ubuntu-latest 跑 | 只在 ubuntu 跑（Windows 需要 gcc）；覆盖的是测试路径，不是所有并发场景 |
+| 代码格式一致 | `ci.yml` 的 `Gofmt` job：`gofmt -l .` 在 ubuntu-latest 跑，非空即失败 | 只在 ubuntu 跑（Windows checkout 可能 CRLF，gofmt 会误报） |
 | 签名、provenance、SBOM | 只能由真实 release 流水线验收 | 见上一节，尚未实现 |
 | 真实终端前的人工确认 | **无法自动证明** | 需要人在真实终端跑一次：`filex rm x --purge` 提示、输 `y` 生效、直接回车拒绝、Ctrl+C 不删除 |
 | 各 MCP 宿主是否会给出可用的会话键 | 无法由本仓库测试证明 | 只能靠 `filex journal stats` 的 `session key share` 与 `mcp hosts seen` 实测 |
@@ -99,9 +106,12 @@ GoReleaser。这三项属于父任务的签名阶段 C–G，需要在真实 rel
 ```bash
 make build            # 可复现构建（CGO_ENABLED=0、-trimpath、-buildvcs=false）
 go vet ./...
+go vet -tags=integration ./...
 go test ./...                              # 单元与表驱动测试，安全地在任何机器上跑
 go test -tags=integration ./cmd/filex/...  # 确认通道探针，只操作临时 HOME 与临时二进制
+gofmt -l .                                 # 代码格式检查，必须为空
 ```
 
 `go test ./internal/winenv/... -tags=integration` **不要在开发机上跑**，它写真实的用户
-环境变量；这条只在 `test-env.yml` 的隔离 VM 里执行。
+环境变量；这条只在 `test-env.yml` 的隔离 VM 里执行。`cmd/filex/env_gate_integration_test.go`
+里的 machine-scope 与 user-scope 探针同理：本机因 `TEST_ENV_CI` 未设而自动跳过。

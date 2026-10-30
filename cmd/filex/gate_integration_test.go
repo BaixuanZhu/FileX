@@ -139,6 +139,21 @@ func (p *probe) exists(name string) bool {
 	return err == nil
 }
 
+// config writes a real policy file into the probe's own home, the same way an
+// operator would. Guard settings are only proven by an on-disk file: a unit test
+// can pass a struct straight to Evaluate and never notice that the loader ignores
+// a key.
+func (p *probe) config(raw string) {
+	p.t.Helper()
+	dir := filepath.Join(p.home, ".filex")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		p.t.Fatalf("mkdir %s: %v", dir, err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "config.json"), []byte(raw), 0644); err != nil {
+		p.t.Fatalf("write config: %v", err)
+	}
+}
+
 func (p *probe) entries() []map[string]any {
 	p.t.Helper()
 
@@ -224,13 +239,7 @@ func TestProbeBypassFlagRunsAndIsAudited(t *testing.T) {
 // allow_bypass=false must be stronger than the flag, even when the flag is real.
 func TestProbeBypassInertWhenConfigRefuses(t *testing.T) {
 	p := newProbe(t)
-	if err := os.MkdirAll(filepath.Join(p.home, ".filex"), 0755); err != nil {
-		t.Fatalf("mkdir: %v", err)
-	}
-	cfg := `{"guard":{"allow_bypass":false}}`
-	if err := os.WriteFile(filepath.Join(p.home, ".filex", "config.json"), []byte(cfg), 0644); err != nil {
-		t.Fatalf("write config: %v", err)
-	}
+	p.config(`{"guard":{"allow_bypass":false}}`)
 	p.seed("victim.txt", "hello")
 
 	code, out := p.run("", "rm", "victim.txt", "--purge", bypassFlag)
@@ -239,6 +248,62 @@ func TestProbeBypassInertWhenConfigRefuses(t *testing.T) {
 	}
 	if !p.exists("victim.txt") {
 		t.Fatal("an inert bypass still deleted the file")
+	}
+}
+
+// guard.enabled=false is an operator setting, so it has to work through the file
+// on disk. Unit tests hand the struct straight to Evaluate and would never notice
+// a key the loader does not read.
+func TestProbeGuardDisabledByConfigRunsPurge(t *testing.T) {
+	p := newProbe(t)
+	p.config(`{"guard":{"enabled":false}}`)
+	p.seed("victim.txt", "hello")
+
+	// No terminal, no bypass flag: the config is the only thing authorising this.
+	code, out := p.run("y\n", "rm", "victim.txt", "--purge")
+	if code != 0 {
+		t.Fatalf("guard.enabled=false was not honoured: exit %d, %s", code, out)
+	}
+	if p.exists("victim.txt") {
+		t.Fatal("the purge was refused despite a disabled guard")
+	}
+
+	entries := p.entries()
+	if len(entries) != 1 {
+		t.Fatalf("want one audit record, got %d: %+v", len(entries), entries)
+	}
+	e := entries[0]
+	if e["result"] != "executed" || e["decision"] != "allow" {
+		t.Fatalf("record is not an allowed execution: %+v", e)
+	}
+	// The record says the guard was off rather than staying silent about it, so
+	// the log can tell "operator disabled the guard" apart from "guard never
+	// applied to this verb".
+	if e["guard_class"] != "disabled" {
+		t.Fatalf("guard_class = %v, want disabled", e["guard_class"])
+	}
+	if v, ok := e["bypass"]; ok && v != false {
+		t.Fatalf("a disabled guard recorded a bypass: %+v", e)
+	}
+}
+
+// A config file that does not parse must not read as "guard disabled". The
+// loader falls back to defaults, and the defaults keep the guard on — so the
+// bypass flag here is allowed, and refusing it would be a different bug.
+func TestProbeBrokenConfigDoesNotDisableGuard(t *testing.T) {
+	p := newProbe(t)
+	p.config(`{"guard":{"enabled":false`)
+	p.seed("victim.txt", "hello")
+
+	code, out := p.run("", "rm", "victim.txt", "--purge")
+	if code == 0 {
+		t.Fatalf("a truncated config file disabled the guard: %s", out)
+	}
+	if !p.exists("victim.txt") {
+		t.Fatal("the file was deleted on a config file that does not parse")
+	}
+	if !strings.Contains(out, "purge_delete") {
+		t.Fatalf("guard did not classify the denied purge: %s", out)
 	}
 }
 

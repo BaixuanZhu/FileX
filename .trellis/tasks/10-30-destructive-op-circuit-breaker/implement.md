@@ -50,6 +50,7 @@
 - [x] D3 `recordJournal` 扩展为记录完整决策链：`guard_class` / `decision` / `decision_reason` / `confirm_source` / `bypass` / `result`。**被拒的操作也必须留痕**，否则无法审计"拦住了什么"。
 - [x] D4 `internal/errs` 复用 `EDenied`，错误体携带结构化 `reason` + `safer_alternative`（不是把两者拼成一句散文）。
 - [x] D5 集成测试：各高危 op 在 `DenyConfirmer` 下被拒、错误体含两个结构化字段、审计留痕完整。
+      **新增（CI 缺口补全）**：`cmd/filex/env_gate_integration_test.go` 的 `TestProbeMachineScopeEnvDeniedWithoutTerminal` 与 `TestProbeUserScopeEnvRunsWithoutTerminal`：前者断言 machine-scope 在非交互下被拒（exit 3 / `E_DENIED` / `machine_env_write` / 审计记录 / 注册表未变），后者断言 user-scope 非交互可写（exit 0 / 审计记录无 `guard_class` / `filex env get` 回读一致）。两个探针都只在 CI 隔离 VM 跑（`requireIsolatedVM` 检查 `TEST_ENV_CI=1` + `GITHUB_ACTIONS=true`），本机跳过。`internal/ops/gate_test.go` 的 `TestDeniedMachineEnvWriteIsAudited` 补充单测层覆盖：断言审计记录的 `op=env_set` / `scope=machine` / `env_name` / `guard_class=machine_env_write` / `decision=deny` / `confirm_source=none`，平台无关本机可跑。
 - [x] D6 grep 核对无遗漏：确认不存在绕过 `gate` 的高危写路径。
       核对结论：`internal/ops` 内共 6 处 `gate(...)` 调用（rm / write / edit / env set / env unset / `GateUpgrade`），`GateUpgrade` 这一个门被升级、版本切换、旧版本清理三条流程共用。`mcp install` 的配置写入**未被门控** —— 它写的是 `~/.filex` 之外的客户端配置文件，不属于 self_config_write 的判据。
 
@@ -68,6 +69,7 @@
       - **管道 stdin 喂 `y` 必须不通过** —— 本子任务的核心安全断言；
       - bypass 执行成功**且**审计含 `bypass=true`，缺记录即测试失败；
       - `allow_bypass=false` 时 bypass 旗标无效。
+      **新增（CI 缺口补全）**：`cmd/filex/gate_integration_test.go` 的 `TestProbeGuardDisabledByConfigRunsPurge` 与 `TestProbeBrokenConfigDoesNotDisableGuard`：前者断言 `guard.enabled=false` 通过真实配置文件生效（exit 0 / 审计记录 `guard_class=disabled` / `decision=allow` / 无 bypass），后者断言损坏的配置文件不会禁用 guard（exit 3 / `purge_delete` 分类）。两个探针本机可跑，不依赖 CI 隔离。
 - [ ] E5 手工验证（CI 覆盖不到，须记录于 PR）：Windows 真实终端下 y/N 提示可用，确认后操作执行、拒绝后不执行。
       **未执行**：本轮交付边界是"只做本地改动、不提交"，真实终端交互无法由 agent 自证。`docs/VERIFY.md` 已把这一条标成需人工验收，review 时请在真实 cmd/Windows Terminal 跑一次 `filex rm x.txt --purge`。
 
@@ -101,6 +103,7 @@
 - [x] G5 配置文档：`guard` 块两个字段与默认值，并说明两个逃生口（`enabled=false` 与 bypass 旗标）。
 - [ ] G6 回归核对（非交互高频写路径，最可能被误伤）：`install.ps1`、`install.sh`、`.github/workflows/test-env.yml`、`filex upgrade`、MCP `ro` profile —— 逐一实测不受熔断影响。
       **静态核对已完成，动态实测未做**：`test-env.yml` 确认新集成探针已被现有命令行覆盖（流水线未改）；MCP `ro` 由 `internal/mcpserver` 包内测试覆盖。`install.ps1` / `install.sh` / `filex upgrade` 的真实执行会改动本机安装目录，属人工验收项 —— 尤其 `upgrade --yes` 语义变了，脚本调用方需要实跑一次确认。
+      **新增（CI 缺口补全）**：`internal/winenv/registry_integration_test.go` 的 `TestMain` 在本机因 `TEST_ENV_CI` 未设而跳过，确保写注册表的测试不会在开发机意外执行。`test-env.yml` 的 `paths` 过滤器扩展至 `internal/ops/**` / `internal/guard/**` / `internal/policy/**` / `internal/journal/**` / `internal/console/**` / `internal/mcpserver/**`，确保 guard 逻辑变更也会触发 CI 跑集成探针。
 - [x] G7 新建 `CHANGELOG.md`（仓库此前没有）：Unreleased 段按 Security / Added / Changed / Breaking 归类，历史段按 tag 日期补齐；四个 P0 修复进 Security，`rm --yes` 下线与退出码 3 进 Breaking。
 
 **依赖**：全部阶段。

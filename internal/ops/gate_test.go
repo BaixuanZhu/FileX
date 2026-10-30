@@ -7,8 +7,10 @@ import (
 	"strings"
 	"testing"
 
+	"filex/internal/errs"
 	"filex/internal/guard"
 	"filex/internal/policy"
+	"filex/internal/winenv"
 )
 
 // writeConfig puts a guard block in the isolated HOME so a test can state which
@@ -53,6 +55,8 @@ func journalEntries(t *testing.T) []journalEntryView {
 type journalEntryView struct {
 	Op             string `json:"op"`
 	Path           string `json:"path"`
+	Scope          string `json:"scope"`
+	EnvName        string `json:"env_name"`
 	Detail         string `json:"detail"`
 	GuardClass     string `json:"guard_class"`
 	Decision       string `json:"decision"`
@@ -312,5 +316,44 @@ func TestGateUpgradeAllowedAtTerminal(t *testing.T) {
 	entries := journalEntries(t)
 	if len(entries) != 1 || entries[0].ConfirmSource != guard.SourceTTY || entries[0].Bypass {
 		t.Fatalf("want a tty-approved record, got %+v", entries)
+	}
+}
+
+// The machine-scope denial is the one guarded action whose audit record has to
+// name the scope and the variable: an operator reading the log should see what
+// was refused without opening the registry. EnvSet refuses before internal/winenv
+// is reached, so this runs on every platform without touching the registry.
+func TestDeniedMachineEnvWriteIsAudited(t *testing.T) {
+	isolate(t)
+	bindRuntime(t, Runtime{Actor: "test", Confirmer: guard.DenyConfirmer{}})
+
+	_, err := EnvSet(EnvSetParams{
+		Scope: winenv.ScopeMachine,
+		Name:  "FILEX_TEST_REFUSED",
+		Value: "x",
+	})
+	if err == nil {
+		t.Fatal("machine-scope env write was allowed without a terminal")
+	}
+	if err.Code != errs.EDenied || err.GuardClass != guard.ClassMachineEnv {
+		t.Fatalf("denial = %+v, want E_DENIED with class %s", err, guard.ClassMachineEnv)
+	}
+	if !strings.Contains(err.SaferAlternative, "--scope=user") {
+		t.Fatalf("denial did not name the narrower scope: %q", err.SaferAlternative)
+	}
+
+	entries := journalEntries(t)
+	if len(entries) != 1 {
+		t.Fatalf("want one audit record, got %d: %+v", len(entries), entries)
+	}
+	e := entries[0]
+	if e.Op != "env_set" || e.Result != "denied" || e.Decision != "deny" {
+		t.Fatalf("record is not a denied env_set: %+v", e)
+	}
+	if e.Scope != "machine" || e.EnvName != "FILEX_TEST_REFUSED" {
+		t.Fatalf("record does not name the scope and the variable: %+v", e)
+	}
+	if e.GuardClass != guard.ClassMachineEnv || e.ConfirmSource != guard.SourceNone {
+		t.Fatalf("class or source missing: %+v", e)
 	}
 }

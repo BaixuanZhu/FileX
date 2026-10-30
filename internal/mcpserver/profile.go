@@ -8,14 +8,14 @@ const (
 )
 
 var readOnlyTools = map[string]bool{
-	"read":    true,
-	"grep":    true,
-	"stat":    true,
-	"lock":    true,
-	"ls":      true,
-	"tail":    true,
-	"backup":  true,
-	"env":     true,
+	"read":   true,
+	"grep":   true,
+	"stat":   true,
+	"lock":   true,
+	"ls":     true,
+	"tail":   true,
+	"backup": true,
+	"env":    true,
 }
 
 var readOnlyEnvActions = map[string]bool{

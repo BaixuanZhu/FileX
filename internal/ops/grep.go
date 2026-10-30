@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	grepMaxDefault   = 100
-	grepMaxBuffer    = 10 * 1024 * 1024
+	grepMaxDefault      = 100
+	grepMaxBuffer       = 10 * 1024 * 1024
 	grepStreamThreshold = 10 * 1024 * 1024
 )
 

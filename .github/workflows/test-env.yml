@@ -1,17 +1,32 @@
 name: Env Integration Tests
 
+# Paths that can change what the real-binary probes assert on: the gate itself
+# (guard/policy/ops), the audit records those probes read (journal), the MCP
+# entry point, the CLI that hosts the probes, and the registry-touching packages.
 on:
   push:
     branches: [main]
     paths:
       - 'internal/winenv/**'
       - 'internal/version/**'
+      - 'internal/guard/**'
+      - 'internal/policy/**'
+      - 'internal/ops/**'
+      - 'internal/journal/**'
+      - 'internal/console/**'
+      - 'internal/mcpserver/**'
       - 'cmd/filex/**'
       - '.github/workflows/test-env.yml'
   pull_request:
     paths:
       - 'internal/winenv/**'
       - 'internal/version/**'
+      - 'internal/guard/**'
+      - 'internal/policy/**'
+      - 'internal/ops/**'
+      - 'internal/journal/**'
+      - 'internal/console/**'
+      - 'internal/mcpserver/**'
       - 'cmd/filex/**'
       - '.github/workflows/test-env.yml'
   workflow_dispatch:
@@ -39,10 +54,10 @@ jobs:
           Write-Host "=== System Environment Variables (BEFORE) ==="
           reg query "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" 2>$null | Out-String | Write-Host
 
-      - name: Run env integration tests
+      - name: Run integration tests
         env:
           TEST_ENV_CI: '1'
-        run: go test -tags=integration ./internal/winenv/... ./internal/version/... ./cmd/filex/... -v -timeout=5m
+        run: go test -tags=integration ./internal/winenv/... ./internal/version/... ./cmd/filex/... -v -timeout=10m
 
       - name: Snapshot environment after tests
         if: always()

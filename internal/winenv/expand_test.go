@@ -53,7 +53,7 @@ func TestExpandCycleProtection(t *testing.T) {
 
 func TestComposeVars(t *testing.T) {
 	system := map[string]string{
-		"SYS":  "system_val",
+		"SYS":    "system_val",
 		"SHARED": "from_system",
 	}
 	user := map[string]string{

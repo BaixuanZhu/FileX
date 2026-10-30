@@ -153,7 +153,7 @@ func printUsage() {
 	fmt.Fprintln(os.Stderr, "  lock      Lock diagnosis")
 	fmt.Fprintln(os.Stderr, "  ls        List directory")
 	fmt.Fprintln(os.Stderr, "  hash      Compute checksum")
-	fmt.Fprintln(os.Stderr, "  rm        Remove (recycle bin by default)")
+	fmt.Fprintln(os.Stderr, "  rm        Remove (recoverable by default)")
 	fmt.Fprintln(os.Stderr, "  tail      Read last N lines")
 	fmt.Fprintln(os.Stderr, "  env       Environment variables (get/set/list/unset)")
 	fmt.Fprintln(os.Stderr, "  backup    Backup management (list/restore/prune)")

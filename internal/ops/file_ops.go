@@ -16,14 +16,14 @@ import (
 )
 
 type StatResult struct {
-	Path      string    `json:"path"`
-	Size      int64     `json:"size"`
-	Mode      string    `json:"mode"`
-	ModTime   time.Time `json:"mod_time"`
-	IsDir     bool      `json:"is_dir"`
-	Encoding  *encoding.DetectionResult `json:"encoding,omitempty"`
-	Lock      *winfs.LockStatus         `json:"lock,omitempty"`
-	SHA256    string    `json:"sha256,omitempty"`
+	Path     string                    `json:"path"`
+	Size     int64                     `json:"size"`
+	Mode     string                    `json:"mode"`
+	ModTime  time.Time                 `json:"mod_time"`
+	IsDir    bool                      `json:"is_dir"`
+	Encoding *encoding.DetectionResult `json:"encoding,omitempty"`
+	Lock     *winfs.LockStatus         `json:"lock,omitempty"`
+	SHA256   string                    `json:"sha256,omitempty"`
 }
 
 func Stat(path string) (*StatResult, *errs.Error) {
@@ -98,11 +98,11 @@ func Lock(path string) (*LockResult, *errs.Error) {
 }
 
 type LsEntry struct {
-	Name  string    `json:"name"`
-	Path  string    `json:"path"`
-	Size  int64     `json:"size"`
-	Mode  string    `json:"mode"`
-	IsDir bool      `json:"is_dir"`
+	Name    string    `json:"name"`
+	Path    string    `json:"path"`
+	Size    int64     `json:"size"`
+	Mode    string    `json:"mode"`
+	IsDir   bool      `json:"is_dir"`
 	ModTime time.Time `json:"mod_time"`
 }
 
@@ -209,12 +209,12 @@ func Hash(path string) (*HashResult, *errs.Error) {
 }
 
 type WriteParams struct {
-	Path         string
-	Content      string
-	Encoding     string
+	Path          string
+	Content       string
+	Encoding      string
 	CreateParents bool
-	ExpectSHA256 string
-	Backup       bool
+	ExpectSHA256  string
+	Backup        bool
 }
 
 type WriteResult struct {

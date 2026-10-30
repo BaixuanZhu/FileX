@@ -32,17 +32,17 @@ func NewServer(profile Profile) *Server {
 }
 
 type jsonrpcRequest struct {
-	JSONRPC string           `json:"jsonrpc"`
-	ID      any              `json:"id,omitempty"`
-	Method  string           `json:"method"`
-	Params  json.RawMessage  `json:"params,omitempty"`
+	JSONRPC string          `json:"jsonrpc"`
+	ID      any             `json:"id,omitempty"`
+	Method  string          `json:"method"`
+	Params  json.RawMessage `json:"params,omitempty"`
 }
 
 type jsonrpcResponse struct {
-	JSONRPC string         `json:"jsonrpc"`
-	ID      any            `json:"id,omitempty"`
-	Result  any            `json:"result,omitempty"`
-	Error   *jsonrpcError  `json:"error,omitempty"`
+	JSONRPC string        `json:"jsonrpc"`
+	ID      any           `json:"id,omitempty"`
+	Result  any           `json:"result,omitempty"`
+	Error   *jsonrpcError `json:"error,omitempty"`
 }
 
 type jsonrpcError struct {

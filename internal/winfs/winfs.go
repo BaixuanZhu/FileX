@@ -10,23 +10,23 @@ import (
 )
 
 var (
-	modkernel32          = syscall.NewLazyDLL("kernel32.dll")
-	procCreateFileW      = modkernel32.NewProc("CreateFileW")
-	procMoveFileExW      = modkernel32.NewProc("MoveFileExW")
+	modkernel32            = syscall.NewLazyDLL("kernel32.dll")
+	procCreateFileW        = modkernel32.NewProc("CreateFileW")
+	procMoveFileExW        = modkernel32.NewProc("MoveFileExW")
 	procGetFileAttributesW = modkernel32.NewProc("GetFileAttributesW")
 )
 
 const (
-	_GENERIC_READ          = 0x80000000
-	_GENERIC_WRITE         = 0x40000000
-	_DELETE                = 0x00010000
-	_FILE_SHARE_READ       = 0x00000001
-	_FILE_SHARE_WRITE      = 0x00000002
-	_FILE_SHARE_DELETE     = 0x00000004
-	_OPEN_EXISTING         = 3
-	_FILE_ATTRIBUTE_NORMAL = 0x80
-	_REPLACE_EXISTING      = 0x1
-	_MOVEFILE_WRITE_THROUGH = 0x8
+	_GENERIC_READ            = 0x80000000
+	_GENERIC_WRITE           = 0x40000000
+	_DELETE                  = 0x00010000
+	_FILE_SHARE_READ         = 0x00000001
+	_FILE_SHARE_WRITE        = 0x00000002
+	_FILE_SHARE_DELETE       = 0x00000004
+	_OPEN_EXISTING           = 3
+	_FILE_ATTRIBUTE_NORMAL   = 0x80
+	_REPLACE_EXISTING        = 0x1
+	_MOVEFILE_WRITE_THROUGH  = 0x8
 	_INVALID_FILE_ATTRIBUTES = ^uintptr(0)
 )
 

@@ -29,10 +29,10 @@ type TailLine struct {
 }
 
 type TailResult struct {
-	Lines     []TailLine             `json:"lines"`
+	Lines     []TailLine               `json:"lines"`
 	Encoding  encoding.DetectionResult `json:"encoding"`
-	TotalSize int64                  `json:"total_size"`
-	Follow    bool                   `json:"follow,omitempty"`
+	TotalSize int64                    `json:"total_size"`
+	Follow    bool                     `json:"follow,omitempty"`
 }
 
 func Tail(p TailParams) (*TailResult, *errs.Error) {

@@ -9,16 +9,16 @@ import (
 type Encoding string
 
 const (
-	EncUTF8      Encoding = "utf8"
-	EncUTF8BOM   Encoding = "utf8bom"
-	EncUTF16LE   Encoding = "utf16le"
-	EncUTF16BE   Encoding = "utf16be"
-	EncUTF32LE   Encoding = "utf32le"
-	EncUTF32BE   Encoding = "utf32be"
-	EncGBK       Encoding = "gbk"
-	EncGB18030   Encoding = "gb18030"
-	EncBinary    Encoding = "binary"
-	EncUnknown   Encoding = "unknown"
+	EncUTF8    Encoding = "utf8"
+	EncUTF8BOM Encoding = "utf8bom"
+	EncUTF16LE Encoding = "utf16le"
+	EncUTF16BE Encoding = "utf16be"
+	EncUTF32LE Encoding = "utf32le"
+	EncUTF32BE Encoding = "utf32be"
+	EncGBK     Encoding = "gbk"
+	EncGB18030 Encoding = "gb18030"
+	EncBinary  Encoding = "binary"
+	EncUnknown Encoding = "unknown"
 )
 
 type Confidence string

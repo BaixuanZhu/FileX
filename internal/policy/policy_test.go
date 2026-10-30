@@ -58,7 +58,7 @@ func TestCheckGitObjectsDenied(t *testing.T) {
 
 func TestCheckAllowedDirs(t *testing.T) {
 	cfg := policy.Config{
-		AllowedDirs:      []string{`D:\work`},
+		AllowedDirs:       []string{`D:\work`},
 		BackupBeforeWrite: true,
 	}
 
@@ -70,7 +70,7 @@ func TestCheckAllowedDirs(t *testing.T) {
 
 func TestCheckOutsideAllowedDenied(t *testing.T) {
 	cfg := policy.Config{
-		AllowedDirs:      []string{`D:\work`},
+		AllowedDirs:       []string{`D:\work`},
 		BackupBeforeWrite: true,
 	}
 

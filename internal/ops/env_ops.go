@@ -94,11 +94,11 @@ func EnvGet(scope winenv.Scope, name string) (*EnvGetResult, *errs.Error) {
 }
 
 type EnvSetParams struct {
-	Scope         winenv.Scope
-	Name          string
-	Value         string
-	PreserveKind  bool
-	NoBroadcast   bool
+	Scope        winenv.Scope
+	Name         string
+	Value        string
+	PreserveKind bool
+	NoBroadcast  bool
 }
 
 type EnvSetResult struct {
@@ -172,7 +172,7 @@ func EnvSet(p EnvSetParams) (*EnvSetResult, *errs.Error) {
 }
 
 type EnvListResult struct {
-	Scope   string   `json:"scope"`
+	Scope     string   `json:"scope"`
 	Variables []EnvVar `json:"variables"`
 }
 

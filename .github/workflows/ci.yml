@@ -36,8 +36,30 @@ jobs:
       - name: Vet
         run: go vet ./...
 
+      # Formatting is checked on one OS only: a Windows runner may check the tree
+      # out with CRLF, and gofmt reports that as a diff on every file, which would
+      # make the gate noise rather than a signal.
+      - name: Gofmt
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          set -euo pipefail
+          out=$(gofmt -l .)
+          if [ -n "$out" ]; then
+            echo "$out"
+            echo "::error::files need gofmt (run: gofmt -w \$(gofmt -l .))"
+            exit 1
+          fi
+
       - name: Test
         run: go test ./...
+
+      # The audit journal is written under a process-wide mutex, and the MCP server
+      # answers concurrent tool calls, so a data race here is a product defect
+      # rather than a test artefact. -race needs cgo, which is why it runs on the
+      # ubuntu leg only.
+      - name: Test with race detector
+        if: matrix.os == 'ubuntu-latest'
+        run: go test -race ./...
 
   reproducible:
     name: Reproducible build (${{ matrix.os }})
