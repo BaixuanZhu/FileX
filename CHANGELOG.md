@@ -6,6 +6,8 @@ adheres to [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-30
+
 ### Security
 
 - `rm --dry-run` reported a preview while still moving the file into the
