@@ -24,6 +24,7 @@ These guides help you **ask the right questions before coding**.
 | [Code Reuse Thinking Guide](./code-reuse-thinking-guide.md) | Identify patterns and reduce duplication | When you notice repeated patterns |
 | [Cross-Layer Thinking Guide](./cross-layer-thinking-guide.md) | Think through data flow across layers | Features spanning multiple layers |
 | [Guard Patterns](../backend/guard-patterns.md) | Circuit-breaker decision layer contract | High-risk operations, confirmer binding, bypass flags |
+| [Observability Patterns](../backend/observability-patterns.md) | Read-time aggregation, observation-only architecture | Stats commands, journal analytics, backward compatibility |
 
 ---
 
@@ -62,6 +63,16 @@ These guides help you **ask the right questions before coding**.
 - [ ] Extending `journal.Entry` with new audit fields
 
 → Read [Guard Patterns](../backend/guard-patterns.md) for the decision-layer contract, confirmer interface, and bypass audit requirements
+
+### When to Think About Observability / Analytics
+
+- [ ] Adding a new aggregation or stats command
+- [ ] Modifying `internal/journal` schema or read path
+- [ ] Introducing caching or materialized views over audit data
+- [ ] Adding new fields to `journal.Entry` (backward compatibility)
+- [ ] Building read-time analytics over append-only logs
+
+→ Read [Observability Patterns](../backend/observability-patterns.md) for read-time aggregation, observation-only architecture, and backward compatibility requirements
 
 ### When Verifying AI Cross-Review Results
 

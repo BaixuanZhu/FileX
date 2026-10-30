@@ -63,6 +63,29 @@ Rules, in order:
 
 ---
 
+## Session Identity
+
+Two fields track **who** performed an operation across multiple calls:
+
+| Field | Type | Source | Constraints |
+|---|---|---|---|
+| `session_id` | `string` | MCP connection / `FILEX_SESSION_ID` env / absent | 32-char hex (MCP) or validated env value; empty when absent |
+| `session_source` | `string` | `mcp_connection` / `env` / empty (absent) | `omitempty`; empty serializes as absent for backward compatibility |
+
+**Key properties**:
+- `session_id` is an **observation label**, not a security credential. It does not participate in authorization or guard decisions. Forgery has no security consequence.
+- `session_source=absent` (serialized as empty) is a **normal state**, not an error. It means "no session information available" and triggers no behavior change.
+- MCP connections generate a stable session ID at `initialize` time; all operations within that connection share the same ID.
+- CLI reads `FILEX_SESSION_ID` once at process start. Values with control characters or length > 64 are rejected and退化 to absent.
+- **Never derive session ID from `ppid` or start time** — this is unreliable (agent-spawned processes get new PIDs) and misattributes human operators.
+
+**Validation rules**:
+- Reject control characters (ASCII 0x00–0x1F, 0x7F) to prevent log injection.
+- Reject length > 64 to bound storage.
+- On validation failure,退化 to `session_id=""` / `session_source=""` (absent). Do not error out — observation must not block operations.
+
+---
+
 ## What NOT to Log
 
 Never write these in clear text:
