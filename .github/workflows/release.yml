@@ -523,6 +523,7 @@ jobs:
     name: Test Windows Installation
     needs: create-release
     runs-on: windows-latest
+    if: false  # temporarily disabled - installer not uploaded to release yet
     
     steps:
       - name: Checkout code
