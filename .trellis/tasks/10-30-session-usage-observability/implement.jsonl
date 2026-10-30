@@ -1,0 +1,4 @@
+{"file": ".trellis/tasks/10-30-session-usage-observability/design.md", "reason": "Session identity sources, stats command shape, decision gate"}
+{"file": ".trellis/tasks/10-30-session-usage-observability/implement.md", "reason": "Phase A-C checklist; no blocking branches allowed"}
+{"file": "internal/journal/journal.go", "reason": "Entry fields filled by this task"}
+{"file": "internal/mcpserver/server.go", "reason": "Connection-level session id origin"}

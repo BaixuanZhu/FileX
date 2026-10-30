@@ -1,0 +1,30 @@
+{
+  "id": "supply-chain-exec-safety",
+  "name": "supply-chain-exec-safety",
+  "title": "供应链与执行安全三项增强",
+  "description": "父任务：统筹三项安全增强（签名标准化、破坏性操作熔断瘦版、会话消耗观测）的需求集、任务映射、跨子任务验收与最终集成评审。v2 策略已收缩：审批队列/规则引擎/哈希链/预算拦截移入 backlog.md 并各带重启条件。实施在子任务中进行。",
+  "status": "planning",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P1",
+  "creator": "zz",
+  "assignee": "zz",
+  "createdAt": "2026-10-30",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "10-30-signing-standardization",
+    "10-30-destructive-op-circuit-breaker",
+    "10-30-session-usage-observability"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}

@@ -1,0 +1,2 @@
+{"file": ".trellis/tasks/10-30-destructive-op-circuit-breaker/design.md", "reason": "Depends on journal field extension (phase B1)"}
+{"file": ".trellis/tasks/10-30-session-usage-observability/implement.md", "reason": "Verify backward-compat byte-equality assertion"}

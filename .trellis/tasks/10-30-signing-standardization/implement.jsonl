@@ -1,0 +1,5 @@
+{"file": ".trellis/tasks/10-30-signing-standardization/design.md", "reason": "GoReleaser config, job chain, and cosign identity contract"}
+{"file": ".trellis/tasks/10-30-signing-standardization/implement.md", "reason": "Phase A-G checklist with review gates and rollback points"}
+{"file": ".github/workflows/release.yml", "reason": "Existing release pipeline being migrated; installer checksum gap at line ~440"}
+{"file": "Makefile", "reason": "BUILD_TIME must switch to commit date for reproducible builds"}
+{"file": ".github/workflows/test-env.yml", "reason": "Only existing test workflow; shows why a general ci.yml is needed"}

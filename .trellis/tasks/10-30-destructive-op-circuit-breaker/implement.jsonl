@@ -1,0 +1,9 @@
+{"file": ".trellis/tasks/10-30-destructive-op-circuit-breaker/design.md", "reason": "guard layer contract, 3 hardcoded classes, TTY independence rule, journal fields"}
+{"file": ".trellis/tasks/10-30-destructive-op-circuit-breaker/implement.md", "reason": "Phase A-G checklist; key path C->D->E"}
+{"file": "internal/ops/helpers.go", "reason": "checkPolicy convergence point where gate() must be inserted"}
+{"file": "internal/ops/file_ops.go", "reason": "Rm/RmParams + Write; P0 defects 1-2 live here"}
+{"file": "internal/policy/policy.go", "reason": "Config + matchPattern reuse for self_config_write class"}
+{"file": "internal/journal/journal.go", "reason": "Entry struct to extend with omitempty audit fields"}
+{"file": "internal/mcpserver/tools.go", "reason": "MCP rm schema: remove yes, add dry_run, structured deny"}
+{"file": "internal/errs/errs.go", "reason": "EDenied reuse + structured error body"}
+{"file": "cmd/filex/file_ops.go", "reason": "CLI rm flag parsing; --dry-run currently discarded"}
