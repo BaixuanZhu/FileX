@@ -8,7 +8,26 @@ import (
 	"filex/internal/journal"
 )
 
+// isolate points both home variables and the working directory at a temp dir, so
+// a test never appends to the developer's real audit log.
+func isolate(t *testing.T) string {
+	t.Helper()
+
+	dir := t.TempDir()
+	resolved, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		resolved = dir
+	}
+	t.Setenv("HOME", resolved)
+	t.Setenv("USERPROFILE", resolved)
+	t.Chdir(resolved)
+
+	return resolved
+}
+
 func TestRecord(t *testing.T) {
+	root := isolate(t)
+
 	entry := journal.Entry{
 		Op:           "write",
 		Path:         `C:\test\file.txt`,
@@ -20,8 +39,7 @@ func TestRecord(t *testing.T) {
 		t.Fatalf("Record failed: %v", err)
 	}
 
-	home, _ := os.UserHomeDir()
-	journalPath := filepath.Join(home, ".filex", "journal", "filex.jsonl")
+	journalPath := filepath.Join(root, ".filex", "journal", "filex.jsonl")
 	data, err := os.ReadFile(journalPath)
 	if err != nil {
 		t.Fatalf("read journal: %v", err)

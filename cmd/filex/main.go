@@ -5,9 +5,17 @@ import (
 	"os"
 
 	"filex/internal/buildinfo"
+	"filex/internal/console"
 	"filex/internal/errs"
+	"filex/internal/guard"
+	"filex/internal/journal"
+	"filex/internal/ops"
 	"filex/internal/version"
 )
+
+// bypassFlag is deliberately verbose: adding it should feel like making a
+// decision, not like completing a command.
+const bypassFlag = "--i-understand-this-is-destructive"
 
 func main() {
 	// Check if migration is needed
@@ -34,6 +42,12 @@ func main() {
 	}
 
 	verb := os.Args[1]
+	args := os.Args[2:]
+
+	// Bound before any verb runs: every operation reads who is asking and who may
+	// answer for them from this, so binding later would leave a window where the
+	// default (deny) applies to something a human did approve.
+	bindRuntime(verb, args)
 
 	var err *errs.Error
 	switch verb {
@@ -42,33 +56,35 @@ func main() {
 	case "version":
 		err = runVersion()
 	case "read":
-		err = runRead(os.Args[2:])
+		err = runRead(args)
 	case "edit":
-		err = runEdit(os.Args[2:])
+		err = runEdit(args)
 	case "write":
-		err = runWrite(os.Args[2:])
+		err = runWrite(args)
 	case "stat":
-		err = runStat(os.Args[2:])
+		err = runStat(args)
 	case "lock":
-		err = runLock(os.Args[2:])
+		err = runLock(args)
 	case "ls":
-		err = runLs(os.Args[2:])
+		err = runLs(args)
 	case "hash":
-		err = runHash(os.Args[2:])
+		err = runHash(args)
 	case "rm":
-		err = runRm(os.Args[2:])
+		err = runRm(args)
 	case "backup":
-		err = runBackup(os.Args[2:])
+		err = runBackup(args)
+	case "journal":
+		err = runJournal(args)
 	case "grep":
-		err = runGrep(os.Args[2:])
+		err = runGrep(args)
 	case "tail":
-		err = runTail(os.Args[2:])
+		err = runTail(args)
 	case "env":
-		err = runEnv(os.Args[2:])
+		err = runEnv(args)
 	case "mcp":
-		err = runMCP(os.Args[2:])
+		err = runMCP(args)
 	case "upgrade":
-		err = runUpgrade(os.Args[2:])
+		err = runUpgrade(args)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown verb: %s\n", verb)
 		printUsage()
@@ -80,6 +96,47 @@ func main() {
 		_ = errs.WriteFailure(os.Stdout, err)
 		os.Exit(err.Code.ExitCode())
 	}
+}
+
+func bindRuntime(verb string, args []string) {
+	// upgrade --yes predates the guard and stays valid as the audited bypass: the
+	// prompt it used to skip read os.Stdin, which is exactly the channel an agent
+	// driving filex controls.
+	bypass := hasFlag(args, bypassFlag) ||
+		(verb == "upgrade" && (hasFlag(args, "--yes") || hasFlag(args, "-y")))
+
+	interactive := console.IsInteractive()
+
+	var confirmer guard.Confirmer
+	switch {
+	case bypass:
+		confirmer = guard.BypassConfirmer{}
+	case interactive:
+		confirmer = guard.TTYConfirmer{}
+	default:
+		confirmer = guard.DenyConfirmer{}
+	}
+
+	// An orchestrator that wants its operations grouped sets the variable; nobody
+	// has to, and an unusable value is dropped rather than repaired.
+	sessionID, sessionSource := journal.SessionFromEnv()
+
+	ops.BindRuntime(ops.Runtime{
+		Actor:         "cli",
+		SessionID:     sessionID,
+		SessionSource: sessionSource,
+		Interactive:   interactive,
+		Confirmer:     confirmer,
+	})
+}
+
+func hasFlag(args []string, flag string) bool {
+	for _, a := range args {
+		if a == flag {
+			return true
+		}
+	}
+	return false
 }
 
 func printUsage() {
@@ -100,6 +157,7 @@ func printUsage() {
 	fmt.Fprintln(os.Stderr, "  tail      Read last N lines")
 	fmt.Fprintln(os.Stderr, "  env       Environment variables (get/set/list/unset)")
 	fmt.Fprintln(os.Stderr, "  backup    Backup management (list/restore/prune)")
+	fmt.Fprintln(os.Stderr, "  journal   Audit log analysis (stats/path)")
 	fmt.Fprintln(os.Stderr, "  mcp       MCP server (serve/install)")
 	fmt.Fprintln(os.Stderr, "  upgrade   Upgrade to latest version")
 }

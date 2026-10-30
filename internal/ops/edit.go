@@ -8,6 +8,7 @@ import (
 
 	"filex/internal/encoding"
 	"filex/internal/errs"
+	"filex/internal/guard"
 )
 
 type EditParams struct {
@@ -109,6 +110,13 @@ func Edit(p EditParams) (*EditResult, *errs.Error) {
 		return result, nil
 	}
 
+	absPath, _ := filepath.Abs(p.Path)
+
+	r, gErr := gate(guard.Action{Verb: guard.VerbEdit, Path: absPath})
+	if gErr != nil {
+		return nil, gErr
+	}
+
 	hashAfter := sha256.Sum256(newData)
 	result.SHA256After = hex.EncodeToString(hashAfter[:])
 
@@ -116,8 +124,7 @@ func Edit(p EditParams) (*EditResult, *errs.Error) {
 		return nil, errs.Newf(errs.EIO, "write failed: %v", err)
 	}
 
-	absPath, _ := filepath.Abs(p.Path)
-	recordJournal("edit", absPath, "", result.SHA256Before, result.SHA256After)
+	recordExecuted("edit", absPath, "", result.SHA256Before, result.SHA256After, "", r)
 
 	return result, nil
 }

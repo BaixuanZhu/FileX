@@ -11,6 +11,7 @@ import (
 	"filex/internal/backup"
 	"filex/internal/encoding"
 	"filex/internal/errs"
+	"filex/internal/guard"
 	"filex/internal/winfs"
 )
 
@@ -235,6 +236,11 @@ func Write(p WriteParams) (*WriteResult, *errs.Error) {
 		return nil, errs.Newf(errs.EIO, "resolve path failed: %v", err)
 	}
 
+	r, gErr := gate(guard.Action{Verb: guard.VerbWrite, Path: absPath})
+	if gErr != nil {
+		return nil, gErr
+	}
+
 	result := &WriteResult{Path: absPath}
 
 	existed := winfs.FileExists(absPath)
@@ -301,15 +307,15 @@ func Write(p WriteParams) (*WriteResult, *errs.Error) {
 	result.SHA256After = hashAfter
 	result.Size = int64(len(data))
 
-	recordJournal("write", absPath, result.Backup, result.SHA256Before, result.SHA256After)
+	recordExecuted("write", absPath, result.Backup, result.SHA256Before, result.SHA256After, "", r)
 
 	return result, nil
 }
 
 type RmParams struct {
-	Path  string
-	Purge bool
-	Yes   bool
+	Path   string
+	Purge  bool
+	DryRun bool
 }
 
 type RmResult struct {
@@ -317,6 +323,32 @@ type RmResult struct {
 	Deleted bool   `json:"deleted"`
 	Purged  bool   `json:"purged"`
 	Trash   string `json:"trash,omitempty"`
+
+	// Dry-run only: what would happen, without touching the filesystem.
+	DryRun     bool   `json:"dry_run,omitempty"`
+	Action     string `json:"action,omitempty"`
+	WillMoveTo string `json:"will_move_to,omitempty"`
+}
+
+func trashRoot() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, ".filex", "trash"), nil
+}
+
+func previewRm(absPath string, purge bool) *RmResult {
+	result := &RmResult{Path: absPath, DryRun: true}
+	if purge {
+		result.Action = "permanent_delete"
+		return result
+	}
+	result.Action = "move_to_trash"
+	if root, err := trashRoot(); err == nil {
+		result.WillMoveTo = root
+	}
+	return result
 }
 
 func Rm(p RmParams) (*RmResult, *errs.Error) {
@@ -333,6 +365,15 @@ func Rm(p RmParams) (*RmResult, *errs.Error) {
 		return nil, errs.Newf(errs.ENotFound, "not found: %s", p.Path)
 	}
 
+	if p.DryRun {
+		return previewRm(absPath, p.Purge), nil
+	}
+
+	r, gErr := gate(guard.Action{Verb: guard.VerbRm, Path: absPath, Purge: p.Purge})
+	if gErr != nil {
+		return nil, gErr
+	}
+
 	result := &RmResult{Path: absPath}
 
 	if p.Purge {
@@ -341,12 +382,14 @@ func Rm(p RmParams) (*RmResult, *errs.Error) {
 		}
 		result.Deleted = true
 		result.Purged = true
-		recordJournal("rm", absPath, "", "", "")
+		recordExecuted("rm", absPath, "", "", "", "purge", r)
 		return result, nil
 	}
 
-	home, _ := os.UserHomeDir()
-	trashDir := filepath.Join(home, ".filex", "trash")
+	trashDir, err := trashRoot()
+	if err != nil {
+		return nil, errs.Newf(errs.EIO, "resolve trash dir failed: %v", err)
+	}
 	if err := os.MkdirAll(trashDir, 0755); err != nil {
 		return nil, errs.Newf(errs.EIO, "create trash dir failed: %v", err)
 	}
@@ -370,7 +413,7 @@ func Rm(p RmParams) (*RmResult, *errs.Error) {
 	result.Deleted = true
 	result.Trash = trashPath
 
-	recordJournal("rm", absPath, "", "", "")
+	recordExecuted("rm", absPath, "", "", "", "trash:"+trashPath, r)
 
 	return result, nil
 }

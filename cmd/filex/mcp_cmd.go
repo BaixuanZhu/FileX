@@ -11,7 +11,9 @@ import (
 	"syscall"
 
 	"filex/internal/errs"
+	"filex/internal/guard"
 	"filex/internal/mcpserver"
+	"filex/internal/ops"
 )
 
 // mcpClients lists every AI client `filex mcp install` can configure.
@@ -66,6 +68,15 @@ func runMCPServe(args []string) *errs.Error {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	// A model at the other end of a pipe is not a human at a terminal: bind the
+	// deny-only runtime before the server can touch a file. Each tools/call
+	// re-binds it with the client's name.
+	ops.BindRuntime(ops.Runtime{
+		Actor:       "mcp",
+		Interactive: false,
+		Confirmer:   guard.DenyConfirmer{},
+	})
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)

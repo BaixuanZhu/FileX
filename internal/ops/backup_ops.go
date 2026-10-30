@@ -1,6 +1,8 @@
 package ops
 
 import (
+	"strconv"
+
 	"filex/internal/backup"
 	"filex/internal/errs"
 )
@@ -27,6 +29,13 @@ func BackupRestore(id string) (*BackupRestoreResult, *errs.Error) {
 	if err != nil {
 		return nil, errs.Newf(errs.EIO, "restore backup: %v", err)
 	}
+
+	restoredPath := ""
+	if entry != nil {
+		restoredPath = entry.Path
+	}
+	recordExecuted("backup_restore", restoredPath, id, "", "", "backup_id="+id, nil)
+
 	return &BackupRestoreResult{
 		Backup:   *entry,
 		Restored: entry.Path,
@@ -45,5 +54,8 @@ func BackupPrune(retention int) (*BackupPruneResult, *errs.Error) {
 	if err != nil {
 		return nil, errs.Newf(errs.EIO, "prune backups: %v", err)
 	}
+
+	recordExecuted("backup_prune", "", "", "", "", "retention="+strconv.Itoa(retention)+" removed="+strconv.Itoa(removed), nil)
+
 	return &BackupPruneResult{Removed: removed}, nil
 }

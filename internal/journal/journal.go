@@ -22,16 +22,41 @@ type Entry struct {
 	EnvName      string `json:"env_name,omitempty"`
 	EnvValueHash string `json:"env_value_hash,omitempty"`
 	ClientInfo   string `json:"client_info,omitempty"`
+
+	// Guard decisions. Every field is omitempty so records written before this
+	// change serialise byte-for-byte as before.
+	Actor          string `json:"actor,omitempty"`          // cli / mcp:<client>
+	SessionID      string `json:"session_id,omitempty"`     // filled by the observability work
+	SessionSource  string `json:"session_source,omitempty"` // mcp_connection / env / absent
+	Detail         string `json:"detail,omitempty"`         // counts, versions, anything non-repeating
+	GuardClass     string `json:"guard_class,omitempty"`
+	Decision       string `json:"decision,omitempty"`
+	DecisionReason string `json:"decision_reason,omitempty"`
+	ConfirmSource  string `json:"confirm_source,omitempty"`
+	Bypass         bool   `json:"bypass,omitempty"`
+	Result         string `json:"result,omitempty"` // executed / denied / failed
 }
 
 var mu sync.Mutex
 
-func journalDir() (string, error) {
+const (
+	journalDirName = "journal"
+	fileName       = "filex.jsonl"
+)
+
+func journalDirPath() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
-	dir := filepath.Join(home, ".filex", "journal")
+	return filepath.Join(home, ".filex", journalDirName), nil
+}
+
+func journalDir() (string, error) {
+	dir, err := journalDirPath()
+	if err != nil {
+		return "", err
+	}
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return "", err
 	}
@@ -51,7 +76,7 @@ func Record(entry Entry) error {
 		return err
 	}
 
-	f, err := os.OpenFile(filepath.Join(dir, "filex.jsonl"),
+	f, err := os.OpenFile(filepath.Join(dir, fileName),
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err

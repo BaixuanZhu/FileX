@@ -116,13 +116,13 @@ func getToolDefinitions(profile Profile) []ToolDefinition {
 		},
 		{
 			Name:        "rm",
-			Description: "Remove file (recycle bin by default)",
+			Description: "Remove file (moved to ~/.filex/trash by default)",
 			InputSchema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
-					"path":  map[string]any{"type": "string", "description": "File path"},
-					"purge": map[string]any{"type": "boolean", "description": "Permanently delete"},
-					"yes":   map[string]any{"type": "boolean", "description": "Skip confirmation"},
+					"path":    map[string]any{"type": "string", "description": "File path"},
+					"purge":   map[string]any{"type": "boolean", "description": "Permanently delete, unrecoverable"},
+					"dry_run": map[string]any{"type": "boolean", "description": "Report what would happen; changes nothing"},
 				},
 				"required": []string{"path"},
 			},
@@ -378,10 +378,11 @@ func dispatchRm(args map[string]any) (any, error) {
 	if path == "" {
 		return nil, fmt.Errorf("path is required")
 	}
+	// A legacy "yes" from the client is ignored: a model must not authorise its own destructive request.
 	result, err := ops.Rm(ops.RmParams{
-		Path:  path,
-		Purge: getBool(args, "purge"),
-		Yes:   getBool(args, "yes"),
+		Path:   path,
+		Purge:  getBool(args, "purge"),
+		DryRun: getBool(args, "dry_run"),
 	})
 	if err != nil {
 		return nil, err

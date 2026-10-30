@@ -3,7 +3,6 @@ package main
 import (
 	"archive/tar"
 	"archive/zip"
-	"bufio"
 	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
@@ -21,6 +20,7 @@ import (
 
 	"filex/internal/buildinfo"
 	"filex/internal/errs"
+	"filex/internal/ops"
 	"filex/internal/version"
 )
 
@@ -56,7 +56,6 @@ type upgradeResult struct {
 func runUpgrade(args []string) *errs.Error {
 	// Parse flags
 	checkOnly := false
-	autoYes := false
 	listOnly := false
 	cleanupOnly := false
 	useVersion := ""
@@ -66,7 +65,9 @@ func runUpgrade(args []string) *errs.Error {
 		case "--check":
 			checkOnly = true
 		case "--yes", "-y":
-			autoYes = true
+			// Accepted for compatibility. It is the bypass flag: the entry point
+			// turned it into an audited authorisation before this ran, so there is
+			// nothing to read here — and nothing an agent can answer on its behalf.
 		case "--list":
 			listOnly = true
 		case "--cleanup":
@@ -126,29 +127,27 @@ func runUpgrade(args []string) *errs.Error {
 		return writeUpgradeResult(result)
 	}
 
-	// Prompt for confirmation
-	if !autoYes {
-		fmt.Fprintf(os.Stderr, "Upgrade FileX from %s to %s? [y/N] ", currentVersion, latestVersion)
-		reader := bufio.NewReader(os.Stdin)
-		response, _ := reader.ReadString('\n')
-		response = strings.TrimSpace(strings.ToLower(response))
-		if response != "y" && response != "yes" {
-			result.Message = "Upgrade cancelled"
-			return writeUpgradeResult(result)
-		}
+	commit, gateErr := ops.GateUpgrade()
+	if gateErr != nil {
+		return gateErr
 	}
 
 	// Perform upgrade
 	if err := performUpgrade(latestVersion, release); err != nil {
 		return errs.Newf(errs.EIO, "upgrade failed: %v", err)
 	}
+	commit("upgrade", fmt.Sprintf("%s -> %s", currentVersion, latestVersion))
 
 	result.Upgraded = true
 	result.Message = fmt.Sprintf("Successfully upgraded from %s to %s", currentVersion, latestVersion)
 
-	// Automatic cleanup
-	if cleanupErr := autoCleanup(); cleanupErr != nil {
+	// Automatic cleanup. Deleting the old versions is part of what the approval
+	// above covered, so it is audited rather than asked about again.
+	removed, cleanupErr := autoCleanup()
+	if cleanupErr != nil {
 		result.Message += fmt.Sprintf("\nWarning: cleanup failed: %v", cleanupErr)
+	} else if removed > 0 {
+		commit("cleanup", fmt.Sprintf("removed=%d", removed))
 	}
 
 	result.Message += "\nNew version will be used on next invocation"
@@ -469,18 +468,18 @@ func copyDir(src, dst string) error {
 	return nil
 }
 
-func autoCleanup() error {
+func autoCleanup() (int, error) {
 	versionsDir, err := version.VersionsDir()
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	entries, err := os.ReadDir(versionsDir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil
+			return 0, nil
 		}
-		return err
+		return 0, err
 	}
 
 	// Collect version directories
@@ -493,7 +492,7 @@ func autoCleanup() error {
 
 	// If <= maxVersions, nothing to clean
 	if len(versions) <= maxVersions {
-		return nil
+		return 0, nil
 	}
 
 	// Sort by version (descending, newest first)
@@ -523,7 +522,7 @@ func autoCleanup() error {
 		fmt.Printf("Cleaned up %d old version(s)\n", removedCount)
 	}
 
-	return nil
+	return removedCount, nil
 }
 
 func listVersions() *errs.Error {
@@ -569,9 +568,17 @@ func switchVersion(targetVersion string) *errs.Error {
 		return errs.Newf(errs.ENotFound, "version %s not installed", targetVersion)
 	}
 
+	commit, gateErr := ops.GateUpgrade()
+	if gateErr != nil {
+		return gateErr
+	}
+
+	currentVersion, _ := version.GetCurrentVersion()
+
 	if err := version.CreateCurrentLink(targetVersion); err != nil {
 		return errs.Newf(errs.EInternal, "failed to switch version: %v", err)
 	}
+	commit("version_switch", fmt.Sprintf("%s -> %s", currentVersion, targetVersion))
 
 	result := map[string]string{
 		"message": fmt.Sprintf("Switched to v%s", targetVersion),
@@ -620,6 +627,13 @@ func cleanupVersions() *errs.Error {
 
 	currentVersion, _ := version.GetCurrentVersion()
 
+	// Deleting an installed version is unrecoverable: the binary is gone, not
+	// trashed. Gate it the same way an upgrade is gated.
+	commit, gateErr := ops.GateUpgrade()
+	if gateErr != nil {
+		return gateErr
+	}
+
 	removedCount := 0
 	for _, v := range versions[maxVersions:] {
 		if v == "v"+currentVersion {
@@ -633,6 +647,7 @@ func cleanupVersions() *errs.Error {
 			fmt.Printf("Removed %s\n", strings.TrimPrefix(v, "v"))
 		}
 	}
+	commit("cleanup", fmt.Sprintf("removed=%d kept=%d", removedCount, maxVersions))
 
 	result := map[string]string{
 		"message": fmt.Sprintf("Cleaned up %d old version(s)", removedCount),

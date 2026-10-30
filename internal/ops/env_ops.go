@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"filex/internal/errs"
-	"filex/internal/journal"
+	"filex/internal/guard"
 	"filex/internal/winenv"
 )
 
@@ -126,6 +126,11 @@ func EnvSet(p EnvSetParams) (*EnvSetResult, *errs.Error) {
 		}, nil
 	}
 
+	r, gErr := gate(guard.Action{Verb: guard.VerbEnvSet, Scope: p.Scope.String(), Name: p.Name})
+	if gErr != nil {
+		return nil, gErr
+	}
+
 	if p.Scope == winenv.ScopeMachine && !winenv.IsElevated() {
 		return nil, errs.WithHint(
 			errs.New(errs.EDenied, "setting machine-scope variables requires administrator privileges"),
@@ -155,7 +160,7 @@ func EnvSet(p EnvSetParams) (*EnvSetResult, *errs.Error) {
 		}
 	}
 
-	_ = journal.Record(journal.MaskEnvEntry("env_set", p.Scope.String(), p.Name, p.Value))
+	recordEnv("env_set", p.Scope.String(), p.Name, p.Value, r)
 
 	return &EnvSetResult{
 		Name:      p.Name,
@@ -255,6 +260,11 @@ func EnvUnset(scope winenv.Scope, name string) (*EnvUnsetResult, *errs.Error) {
 		)
 	}
 
+	r, gErr := gate(guard.Action{Verb: guard.VerbEnvUnset, Scope: scope.String(), Name: name})
+	if gErr != nil {
+		return nil, gErr
+	}
+
 	if scope == winenv.ScopeMachine && !winenv.IsElevated() {
 		return nil, errs.WithHint(
 			errs.New(errs.EDenied, "deleting machine-scope variables requires administrator privileges"),
@@ -272,11 +282,7 @@ func EnvUnset(scope winenv.Scope, name string) (*EnvUnsetResult, *errs.Error) {
 
 	_ = winenv.NotifyEnvironmentChange()
 
-	_ = journal.Record(journal.Entry{
-		Op:      "env_unset",
-		Scope:   scope.String(),
-		EnvName: name,
-	})
+	recordEnv("env_unset", scope.String(), name, "", r)
 
 	return &EnvUnsetResult{Name: name, Scope: scope.String()}, nil
 }

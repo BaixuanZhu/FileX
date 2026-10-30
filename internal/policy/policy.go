@@ -8,10 +8,23 @@ import (
 )
 
 type Config struct {
-	AllowedDirs      []string `json:"allowed_dirs,omitempty"`
-	DenyPatterns     []string `json:"deny_patterns,omitempty"`
-	BackupBeforeWrite bool    `json:"backup_before_write"`
+	AllowedDirs       []string `json:"allowed_dirs,omitempty"`
+	DenyPatterns      []string `json:"deny_patterns,omitempty"`
+	BackupBeforeWrite bool     `json:"backup_before_write"`
+	Guard             Guard    `json:"guard"`
 }
+
+// Guard is the destructive-operation circuit breaker. Both fields are pointers
+// so that a partial block like {"guard": {"allow_bypass": false}} keeps the
+// other default instead of silently switching the whole guard off.
+type Guard struct {
+	Enabled     *bool `json:"enabled,omitempty"`
+	AllowBypass *bool `json:"allow_bypass,omitempty"`
+}
+
+func (g Guard) IsEnabled() bool { return g.Enabled == nil || *g.Enabled }
+
+func (g Guard) AllowsBypass() bool { return g.AllowBypass == nil || *g.AllowBypass }
 
 func DefaultConfig() Config {
 	return Config{
@@ -143,6 +156,11 @@ func matchPattern(path, pattern string) bool {
 	}
 	return false
 }
+
+// MatchesPattern exposes the one path matcher in this module, so internal/guard
+// classifies paths with the same case-insensitive semantics the policy uses
+// instead of growing a second matcher.
+func MatchesPattern(path, pattern string) bool { return matchPattern(path, pattern) }
 
 func splitPath(p string) []string {
 	p = filepath.Clean(p)

@@ -5,7 +5,6 @@ import (
 
 	"filex/internal/errs"
 	"filex/internal/ops"
-	"filex/internal/backup"
 )
 
 func runStat(args []string) *errs.Error {
@@ -144,29 +143,32 @@ func runWrite(args []string) *errs.Error {
 
 func runRm(args []string) *errs.Error {
 	var path string
-	var purge, yes bool
+	var purge, dryRun bool
 
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		if arg == "--purge" {
 			purge = true
-		} else if arg == "--yes" {
-			yes = true
 		} else if arg == "--dry-run" {
-			continue
+			dryRun = true
+		} else if arg == "--yes" {
+			return errs.WithHint(
+				errs.New(errs.EUsage, "--yes no longer exists: it never skipped anything"),
+				"run --dry-run to preview; irreversible operations now ask for confirmation on the terminal",
+			)
 		} else if len(arg) == 0 || arg[0] != '-' {
 			path = arg
 		}
 	}
 
 	if path == "" {
-		return errs.New(errs.EUsage, "usage: filex rm <path> [--purge] [--yes]")
+		return errs.New(errs.EUsage, "usage: filex rm <path> [--purge] [--dry-run]")
 	}
 
 	result, err := ops.Rm(ops.RmParams{
-		Path:  path,
-		Purge: purge,
-		Yes:   yes,
+		Path:   path,
+		Purge:  purge,
+		DryRun: dryRun,
 	})
 	if err != nil {
 		return err
@@ -191,11 +193,11 @@ func runBackup(args []string) *errs.Error {
 				filterPath = args[i][7:]
 			}
 		}
-		backups, err := backup.ListBackups(filterPath)
-		if err != nil {
-			return errs.Newf(errs.EIO, "list failed: %v", err)
+		result, listErr := ops.BackupList(filterPath)
+		if listErr != nil {
+			return listErr
 		}
-		if err := errs.WriteSuccess(os.Stdout, backups); err != nil {
+		if err := errs.WriteSuccess(os.Stdout, result.Backups); err != nil {
 			return errs.Newf(errs.EIO, "write failed: %v", err)
 		}
 		return nil
@@ -204,14 +206,11 @@ func runBackup(args []string) *errs.Error {
 		if len(args) < 2 {
 			return errs.New(errs.EUsage, "usage: filex backup restore <backup-id>")
 		}
-		entry, err := backup.RestoreBackup(args[1])
-		if err != nil {
-			if e, ok := err.(*errs.Error); ok {
-				return e
-			}
-			return errs.Newf(errs.EIO, "restore failed: %v", err)
+		result, restoreErr := ops.BackupRestore(args[1])
+		if restoreErr != nil {
+			return restoreErr
 		}
-		if err := errs.WriteSuccess(os.Stdout, entry); err != nil {
+		if err := errs.WriteSuccess(os.Stdout, result.Backup); err != nil {
 			return errs.Newf(errs.EIO, "write failed: %v", err)
 		}
 		return nil
@@ -223,11 +222,11 @@ func runBackup(args []string) *errs.Error {
 				retention = atoi(args[i][12:])
 			}
 		}
-		pruned, err := backup.PruneBackups(retention)
-		if err != nil {
-			return errs.Newf(errs.EIO, "prune failed: %v", err)
+		result, pruneErr := ops.BackupPrune(retention)
+		if pruneErr != nil {
+			return pruneErr
 		}
-		if err := errs.WriteSuccess(os.Stdout, map[string]int{"pruned": pruned}); err != nil {
+		if err := errs.WriteSuccess(os.Stdout, map[string]int{"pruned": result.Removed}); err != nil {
 			return errs.Newf(errs.EIO, "write failed: %v", err)
 		}
 		return nil

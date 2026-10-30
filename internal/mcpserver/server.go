@@ -10,12 +10,18 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"filex/internal/errs"
+	"filex/internal/guard"
+	"filex/internal/journal"
+	"filex/internal/ops"
 )
 
 type Server struct {
-	profile   Profile
-	mu        sync.Mutex
+	profile    Profile
+	mu         sync.Mutex
 	clientInfo map[string]any
+	sessionID  string
 }
 
 func NewServer(profile Profile) *Server {
@@ -161,9 +167,16 @@ func (s *Server) handleInitialize(req *jsonrpcRequest) *jsonrpcResponse {
 
 	s.mu.Lock()
 	s.clientInfo = params.ClientInfo
+	// One id per connection, stable for as long as it lives, so every operation an
+	// agent performs in a session groups together. It labels records; it does not
+	// authorise anything.
+	if s.sessionID == "" {
+		s.sessionID = journal.NewSessionID()
+	}
+	sessionID := s.sessionID
 	s.mu.Unlock()
 
-	recordClientInfo(params.ClientInfo)
+	recordClientInfo(params.ClientInfo, sessionID)
 
 	return &jsonrpcResponse{
 		JSONRPC: "2.0",
@@ -225,21 +238,21 @@ func (s *Server) handleToolsCall(ctx context.Context, req *jsonrpcRequest) *json
 		}
 	}
 
+	// Bound per call: the client's identity only exists after initialize, and the
+	// confirmer always answers no — a model that asks again is not a human who
+	// approved the first time.
+	actor, sessionID, sessionSource := s.identity()
+	ops.BindRuntime(ops.Runtime{
+		Actor:         actor,
+		SessionID:     sessionID,
+		SessionSource: sessionSource,
+		Interactive:   false,
+		Confirmer:     guard.DenyConfirmer{},
+	})
+
 	result, err := dispatchTool(ctx, s.profile, params.Name, params.Arguments)
 	if err != nil {
-		return &jsonrpcResponse{
-			JSONRPC: "2.0",
-			ID:      req.ID,
-			Result: map[string]any{
-				"isError": true,
-				"content": []map[string]any{
-					{
-						"type": "text",
-						"text": err.Error(),
-					},
-				},
-			},
-		}
+		return toolErrorResponse(req.ID, err)
 	}
 
 	resultJSON, _ := json.Marshal(result)
@@ -269,17 +282,69 @@ func errorResponse(id any, code int, message string) *jsonrpcResponse {
 	}
 }
 
-func recordClientInfo(info map[string]any) {
+// toolErrorResponse keeps a refusal actionable. The reason and the alternative
+// go in as text, which every client displays, and as structuredContent, which a
+// client that reads it can branch on instead of parsing prose.
+func toolErrorResponse(id any, err error) *jsonrpcResponse {
+	text := err.Error()
+	var denial *errs.Error
+	if e, ok := err.(*errs.Error); ok && e != nil && e.GuardClass != "" {
+		denial = e
+		text = fmt.Sprintf("%s\nreason: %s\nsafer alternative: %s", text, e.Reason, e.SaferAlternative)
+	}
+
+	result := map[string]any{
+		"isError": true,
+		"content": []map[string]any{
+			{
+				"type": "text",
+				"text": text,
+			},
+		},
+	}
+	if denial != nil {
+		result["structuredContent"] = denial
+	}
+
+	return &jsonrpcResponse{
+		JSONRPC: "2.0",
+		ID:      id,
+		Result:  result,
+	}
+}
+
+// identity is who is driving this server and which connection they are on. Both
+// go into the audit trail; neither grants anything. Before an initialize, or from
+// a client that sends no name, "mcp" with no session is the honest answer.
+func (s *Server) identity() (actor, sessionID, sessionSource string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	actor = "mcp"
+	if name, _ := s.clientInfo["name"].(string); name != "" {
+		actor = "mcp:" + name
+	}
+	if s.sessionID != "" {
+		return actor, s.sessionID, journal.SessionSourceMCPConnection
+	}
+	return actor, "", ""
+}
+
+func recordClientInfo(info map[string]any, sessionID string) {
 	if info == nil {
 		return
 	}
 	name, _ := info["name"].(string)
 	version, _ := info["version"].(string)
-	if name != "" {
-		_ = journalRecord("mcp_initialize", "", fmt.Sprintf("client=%s version=%s", name, version))
+	if name == "" {
+		return
 	}
-}
-
-func journalRecord(op, path, detail string) error {
-	return nil
+	_ = journal.Record(journal.Entry{
+		Op:            "mcp_initialize",
+		ClientInfo:    fmt.Sprintf("client=%s version=%s", name, version),
+		Actor:         "mcp:" + name,
+		SessionID:     sessionID,
+		SessionSource: journal.SessionSourceMCPConnection,
+		Result:        "executed",
+	})
 }

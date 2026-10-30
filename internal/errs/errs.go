@@ -55,6 +55,21 @@ type Error struct {
 	Message   string `json:"message"`
 	Hint      string `json:"hint,omitempty"`
 	Retryable bool   `json:"retryable"`
+
+	// Structured refusal details: an agent can branch on these instead of
+	// parsing a sentence, and a caller can offer the alternative it names.
+	Reason           string `json:"reason,omitempty"`
+	SaferAlternative string `json:"safer_alternative,omitempty"`
+	GuardClass       string `json:"guard_class,omitempty"`
+}
+
+// DeniedByGuard builds the refusal returned by the circuit breaker.
+func DeniedByGuard(message, class, reason, alternative string) *Error {
+	e := Newf(EDenied, "%s (%s)", message, class)
+	e.GuardClass = class
+	e.Reason = reason
+	e.SaferAlternative = alternative
+	return e
 }
 
 func (e *Error) Error() string {
