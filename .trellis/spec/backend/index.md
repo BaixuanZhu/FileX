@@ -19,6 +19,7 @@ This directory contains guidelines for backend development. Fill in each file wi
 | [Error Handling](./error-handling.md) | Error types, handling strategies | Filled 2026-10-30 |
 | [Quality Guidelines](./quality-guidelines.md) | Code standards, forbidden patterns, testing conventions | Filled 2026-10-30 |
 | [Logging Guidelines](./logging-guidelines.md) | Append-only audit journal, field compatibility rules | Filled 2026-10-30 |
+| [Guard Patterns](./guard-patterns.md) | Circuit-breaker decision layer, confirmer interface, bypass audit | Filled 2026-10-30 |
 
 ---
 

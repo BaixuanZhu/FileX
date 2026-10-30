@@ -23,6 +23,7 @@ These guides help you **ask the right questions before coding**.
 |-------|---------|-------------|
 | [Code Reuse Thinking Guide](./code-reuse-thinking-guide.md) | Identify patterns and reduce duplication | When you notice repeated patterns |
 | [Cross-Layer Thinking Guide](./cross-layer-thinking-guide.md) | Think through data flow across layers | Features spanning multiple layers |
+| [Guard Patterns](../backend/guard-patterns.md) | Circuit-breaker decision layer contract | High-risk operations, confirmer binding, bypass flags |
 
 ---
 
@@ -50,6 +51,17 @@ These guides help you **ask the right questions before coding**.
 - [ ] Multiple branches update the same derived state from `kind` / `action`
 
 → Read [Code Reuse Thinking Guide](./code-reuse-thinking-guide.md)
+
+### When to Think About Guard / Circuit-Breaker
+
+- [ ] Adding a new high-risk operation (irreversible delete, system-wide change, self-modification)
+- [ ] Modifying `internal/ops` entry points (rm / write / edit / env / upgrade)
+- [ ] Changing confirmer binding (CLI vs MCP entry points)
+- [ ] Adding a bypass flag or `--yes`-style parameter
+- [ ] Touching `internal/guard` classifications or `internal/console` detection
+- [ ] Extending `journal.Entry` with new audit fields
+
+→ Read [Guard Patterns](../backend/guard-patterns.md) for the decision-layer contract, confirmer interface, and bypass audit requirements
 
 ### When Verifying AI Cross-Review Results
 
