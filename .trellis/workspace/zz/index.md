@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 1
+- **Total Sessions**: 2
 - **Last Active**: 2026-10-30
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~31 | Active |
+| `journal-1.md` | ~53 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 2 | 2026-10-30 | 完成破坏性操作熔断 spec 更新与任务归档 | `4401b3f` | `main` |
 | 1 | 2026-10-30 | CI 缺口补全：gofmt gate、-race 检测、machine-scope 探针、guard 配置探针 | `eeff8b2`, `2338c26`, `ef3f13b` | `main` |
 <!-- @@@/auto:session-history -->
 

@@ -29,3 +29,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 2: 完成破坏性操作熔断 spec 更新与任务归档
+<!-- trellis-session: v=2 fp=91db3edafd7697ba -->
+
+**Date**: 2026-10-30
+**Task**: 完成破坏性操作熔断 spec 更新与任务归档
+**Branch**: `main`
+
+### Summary
+
+验证 destructive-op-circuit-breaker 实现完整性，创建 guard-patterns.md 代码规范（含架构、签名、合约、验证矩阵、测试要求、设计决策、常见错误），更新 backend 和 guides 索引，提交并归档任务
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `4401b3f` | docs(spec): add guard patterns spec for circuit-breaker decision layer |
+
+### Status
+
+[OK] **Completed**
