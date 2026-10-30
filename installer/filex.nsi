@@ -24,7 +24,8 @@ SetCompressor /SOLID lzma
 
 ; Installation directory
 InstallDir "$LOCALAPPDATA\FileX"
-InstallDirRegKey HKCU "Software\FileX" "InstallPath"
+; Note: InstallDirRegKey removed to avoid overriding /D= parameter.
+; Existing installation detection is handled manually in .onInit.
 
 ; MUI2 configuration
 !define MUI_ABORTWARNING
@@ -317,18 +318,6 @@ FunctionEnd
 
 ; Installer initialization
 Function .onInit
-  ; An explicit /D= on the command line is a deliberate location choice and
-  ; wins over the previous installation's directory. NSIS processes /D= first,
-  ; but InstallDirRegKey (line 27) overrides it with the registry value.
-  ; We must detect /D= here and restore it.
-  Push $R0
-  ClearErrors
-  ${GetOptions} "$CMDLINE" "/D=" $R0
-  IfErrors +3
-    StrCpy $INSTDIR $R0
-    Goto NoExisting
-  Pop $R0
-  
   ; Check for existing installation
   ReadRegStr $0 HKCU "Software\FileX" "InstallPath"
   StrCmp $0 "" NoExisting
