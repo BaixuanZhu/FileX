@@ -318,13 +318,16 @@ FunctionEnd
 ; Installer initialization
 Function .onInit
   ; An explicit /D= on the command line is a deliberate location choice and
-  ; wins over the previous installation's directory
+  ; wins over the previous installation's directory. NSIS processes /D= first,
+  ; but InstallDirRegKey (line 27) overrides it with the registry value.
+  ; We must detect /D= here and restore it.
   Push $R0
   ClearErrors
   ${GetOptions} "$CMDLINE" "/D=" $R0
+  IfErrors +3
+    StrCpy $INSTDIR $R0
+    Goto NoExisting
   Pop $R0
-  IfErrors +2
-  Goto NoExisting
   
   ; Check for existing installation
   ReadRegStr $0 HKCU "Software\FileX" "InstallPath"
