@@ -91,16 +91,16 @@ go build -ldflags "-X filex/internal/buildinfo.Version=$(git describe --tags --a
 filex read config.ini --encoding=auto
 ```
 
-Output:
+Output (shape taken from a real run; detection is heuristic, so a GBK file may
+be reported as `gb18030` with `probable` confidence):
 ```json
 {
-  "success": true,
+  "schema_version": 1,
+  "ok": true,
   "data": {
-    "path": "config.ini",
-    "encoding": "gbk",
-    "content": "[section]\nkey=value\n",
-    "size": 1234,
-    "sha256": "abc123..."
+    "content": "...\n",
+    "encoding": { "encoding": "gb18030", "bom": false, "confidence": "probable" },
+    "size": 5
   }
 }
 ```
@@ -121,11 +121,15 @@ filex backup restore <backup-id>
 ### Safe deletion
 
 ```bash
-# Delete to recycle bin (recoverable)
+# Delete to the recovery directory (recoverable)
 filex rm old-file.txt
 
-# Permanent delete (use with caution)
-filex rm old-file.txt --purge --yes
+# Preview what a permanent delete would do, without changing anything
+filex rm old-file.txt --purge --dry-run
+
+# Permanent delete: type the confirmation in a terminal; refused outright
+# when there is no terminal (script, CI, AI agent)
+filex rm old-file.txt --purge
 ```
 
 ### Environment variables (Windows)
@@ -162,7 +166,7 @@ filex upgrade --check
 # Upgrade to latest version (automatic cleanup of old versions)
 filex upgrade
 
-# Upgrade without confirmation prompt
+# Upgrade with no terminal confirmation (audited bypass; refused when guard.allow_bypass=false)
 filex upgrade --yes
 
 # List all installed versions
@@ -216,7 +220,7 @@ See the [filex agent skill](skills/filex/SKILL.md) for complete command referenc
 | `lock` | Lock diagnosis (exclusive + deletable) |
 | `ls` | List directory |
 | `hash` | Compute checksum |
-| `rm` | Remove (recycle bin by default) |
+| `rm` | Remove (moves to `~/.filex/trash` by default, recoverable) |
 | `tail` | Read last N lines (encoding-aware) |
 
 ### Environment Variables
@@ -228,13 +232,15 @@ See the [filex agent skill](skills/filex/SKILL.md) for complete command referenc
 | `env list` | List variables (sensitive values masked) |
 | `env unset` | Delete variable |
 
-### Backup & MCP
+### Backups, journal and MCP
 
 | Command | Purpose |
 |---|---|
 | `backup list` | List backups |
 | `backup restore` | Restore from backup |
 | `backup prune` | Clean old backups |
+| `journal stats` | Aggregate the audit journal: distribution by session/operation/risk class (read-only) |
+| `journal path` | Print the audit journal location |
 | `mcp serve` | Start MCP stdio server |
 | `mcp install` | Install MCP config for client |
 
@@ -264,6 +270,7 @@ All operations are logged to `~/.filex/journal/filex.jsonl`:
 - SHA-256 before/after for write operations
 - Environment variable names (values hashed if sensitive)
 - Sensitive names: PASSWORD, SECRET, KEY, TOKEN, CREDENTIAL, PRIVATE, SIGNATURE
+- Denied operations are recorded as well, not only the ones that ran
 
 ### Backup Strategy
 
@@ -272,16 +279,100 @@ All operations are logged to `~/.filex/journal/filex.jsonl`:
 - Default retention: 3 backups per file
 - `backup prune` cleans old backups
 
-### Recycle Bin
+### Recovery directory
 
-- `rm` moves files to Windows recycle bin by default (recoverable)
-- `rm --purge` permanently deletes (use with caution)
-- `rm --dry-run` shows what would be deleted
+- By default `rm` moves files to `~/.filex/trash` (on Windows
+  `%USERPROFILE%\.filex\trash`), renamed to `name-timestamp` so you can get them back
+- This is filex's own directory, **not the Windows recycle bin**: files do not appear
+  in the recycle bin UI and are not touched by its cleanup policy
+- `rm --purge` deletes permanently and requires confirmation (see below)
+- `rm --dry-run` previews what would happen; it changes nothing on disk and writes no
+  audit record
 
-### MCP Profiles
+### Confirmation channel and bypass
+
+Irreversible operations are classified by `internal/guard` into four classes:
+`purge_delete` (permanent delete), `machine_env_write` (machine-scope environment
+variable write), `self_config_write` (writing filex's own config directory
+`~/.filex`), `self_update` (upgrade and removal of installed versions).
+
+The decision looks at two things only: **whether the current process has an
+interactive terminal**, and **whether this class may be bypassed**.
+
+- Terminal available → prompt y/N; only `y`/`yes` passes. An empty line is a denial.
+- No terminal (script, CI, AI agent) → refused outright, no prompt.
+- **Confirmation reads the terminal, never stdin**: a `y` fed through a pipe is not a
+  human's consent. Even when a process holds `CONIN$`, it is judged non-interactive as
+  soon as its stdin is a hijacked pipe — so an agent can neither authorize itself nor
+  block forever waiting for a keystroke.
+- The MCP path is always non-interactive: a model asking again is not a human who
+  approved.
+
+The only way around the confirmation is the explicit flag:
+
+```bash
+filex rm big/dir --purge --i-understand-this-is-destructive
+```
+
+It is deliberately verbose — adding it should feel like making a decision, not like
+completing a command. The audit record keeps `bypass=true` and
+`confirm_source=bypass:flag`, so the overruled objection and the executed operation
+are both visible. Setting `guard.allow_bypass=false` in `~/.filex/config.json` makes
+the flag inert (then the config decides, and a wrongly installed confirmer at the
+entry point cannot override it); `guard.enabled=false` is what turns the whole layer
+off, which is on by default.
+
+`filex upgrade --yes` keeps the same semantics: it is an audited bypass, no longer
+"skip the prompt that actually read stdin". The old `filex rm --yes` is retired — it
+used to do nothing, and now reports a usage error.
+
+Denied operations are written to the audit log too (`result=denied`, `decision`,
+`decision_reason`); otherwise the journal could not answer "what was stopped".
+
+### Session usage observation
+
+Audit entries may carry `session_id` and `session_source` (`mcp_connection` / `env` /
+`absent`) to group the several operations of one task turn, which `filex journal stats`
+then aggregates into distributions:
+
+```bash
+filex journal stats --since=72h --group-by=session
+filex journal stats --json
+```
+
+One point must be stated plainly: **`session_id` is an observability label, not a
+credential.** It takes part in neither the path policy nor the guard decision, and
+forging it only pollutes the forger's own statistics. Therefore:
+
+- Leaving `FILEX_SESSION_ID` unset is the normal state and triggers no behaviour change
+- This feature **intercepts nothing, degrades nothing, throttles nothing**; the
+  aggregation commands are read-only, and a broken aggregation cannot affect file
+  operations
+- Old audit records without a session key are byte-for-byte identical to new records
+  without one, so existing consumers need no upgrade
+
+`journal stats` reports session key share, per-session p50/p99/max for high-risk
+operations, denial and bypass counts, and the MCP hosts it has seen — exactly the data
+that decides whether a per-session limit is worth building. The threshold for that
+conclusion lives in the task docs; the tool reports measured values and makes no
+judgement itself.
+
+### Supply-chain verification
+
+Release artifacts ship with reproducible builds, cosign signatures, SLSA provenance
+and SBOM. Verification steps are in [docs/VERIFY.md](docs/VERIFY.md). Reproducibility
+is proven in CI by comparing two independent builds; signatures and provenance can
+only be accepted in the context of a real release pipeline.
+
+### MCP profiles
 
 - `ro` (default): read-only tools (read, grep, stat, lock, ls, tail, env get/list, backup list)
 - `rw`: all tools including write operations
+
+`rw` does not change the decision above: under MCP, `rm --purge`, machine-scope
+environment variable writes and upgrades are still refused; it only adds the
+capabilities `write`, `edit`, `rm` (the recoverable part of it), `env set/unset`
+and `backup restore/prune`.
 
 ## MCP Integration
 
@@ -352,12 +443,14 @@ Or copy the `skills/filex/` folder into your agent's skills directory
 
 ## Output Format
 
-All commands output JSON envelope:
+File and environment-variable commands emit a JSON envelope (`help`, `mcp`,
+`upgrade` and `journal stats` print human-readable text instead):
 
 **Success**:
 ```json
 {
-  "success": true,
+  "schema_version": 1,
+  "ok": true,
   "data": { ... }
 }
 ```
@@ -365,7 +458,8 @@ All commands output JSON envelope:
 **Error**:
 ```json
 {
-  "success": false,
+  "schema_version": 1,
+  "ok": false,
   "error": {
     "code": "E_NOT_FOUND",
     "message": "file not found",
@@ -375,10 +469,32 @@ All commands output JSON envelope:
 }
 ```
 
+When the circuit breaker refuses an operation (`code` is `E_DENIED`), `error`
+also carries three fields a caller can branch on instead of parsing prose:
+
+```json
+{
+  "code": "E_DENIED",
+  "message": "denied by guard (purge_delete)",
+  "retryable": false,
+  "reason": "permanent delete is unrecoverable",
+  "safer_alternative": "drop --purge and the file moves to the trash dir, where it can be recovered",
+  "guard_class": "purge_delete"
+}
+```
+
 Exit codes:
 - `0`: success
-- `1`: operation error
+- `1`: internal error
 - `2`: usage error
+- `3`: refused by the guard
+- `4`: file locked
+- `5`: not found
+- `6`: conflict (for example `--expect-sha256` mismatch)
+- `7`: encoding error
+- `8`: IO error
+- `9`: size limit exceeded
+- `10`: unsupported
 
 ## Development
 
