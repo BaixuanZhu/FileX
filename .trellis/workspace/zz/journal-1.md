@@ -51,3 +51,25 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 3: 完成会话观测 spec 更新与任务归档
+<!-- trellis-session: v=2 fp=6b2f80e7156d4bf2 -->
+
+**Date**: 2026-10-30
+**Task**: 完成会话观测 spec 更新与任务归档
+**Branch**: `main`
+
+### Summary
+
+验证 session-usage-observability 实现完整性，创建 observability-patterns.md 代码规范（含读时聚合、观察优先架构、向后兼容），更新 logging-guidelines 补充 session identity 字段，提交并归档子任务及父任务 supply-chain-exec-safety（3/3 全部完成）
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5147445` | docs(spec): add observability patterns spec and session identity contract |
+
+### Status
+
+[OK] **Completed**
