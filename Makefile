@@ -1,15 +1,19 @@
-.PHONY: build clean test
+.PHONY: build clean test test-integration install
 
 VERSION ?= $(shell git describe --tags --always 2>/dev/null || echo "dev")
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-BUILD_TIME ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+# Commit date, not build date: the same commit must produce the same binary.
+BUILD_TIME ?= $(shell git show -s --format=%cI HEAD 2>/dev/null || echo "unknown")
 
-LDFLAGS := -X filex/internal/buildinfo.Version=$(VERSION) \
+LDFLAGS := -s -w \
+           -X filex/internal/buildinfo.Version=$(VERSION) \
            -X filex/internal/buildinfo.Commit=$(COMMIT) \
            -X filex/internal/buildinfo.BuildTime=$(BUILD_TIME)
 
+BUILD_FLAGS := -trimpath -buildvcs=false
+
 build:
-	go build -ldflags "$(LDFLAGS)" -o filex.exe ./cmd/filex
+	CGO_ENABLED=0 go build $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" -o filex.exe ./cmd/filex
 
 clean:
 	rm -f filex.exe
@@ -21,4 +25,4 @@ test-integration:
 	go test -tags=integration ./internal/winenv/...
 
 install:
-	go install -ldflags "$(LDFLAGS)" ./cmd/filex
+	CGO_ENABLED=0 go install $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" ./cmd/filex

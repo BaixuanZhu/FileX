@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Build, vet, test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.26.5'
+          cache: true
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./...
+
+  reproducible:
+    name: Reproducible build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            binary: filex
+          - os: windows-latest
+            binary: filex.exe
+
+    steps:
+      - name: Checkout twice into different directories
+        uses: actions/checkout@v7
+        with:
+          path: build-a
+
+      - uses: actions/checkout@v7
+        with:
+          path: build-b
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.26.5'
+          # Shared setup-go cache points at a GOCACHE we deliberately override below,
+          # so reusing it here would not help and would hide isolation bugs.
+          cache: false
+
+      - name: Compute build inputs
+        id: inputs
+        shell: bash
+        run: |
+          echo "commit=$(git -C build-a rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          echo "build_time=$(git -C build-a show -s --format=%cI HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Build in two isolated environments
+        shell: bash
+        run: |
+          set -euo pipefail
+          ldflags="-s -w -X filex/internal/buildinfo.Version=ci \
+            -X filex/internal/buildinfo.Commit=${{ steps.inputs.outputs.commit }} \
+            -X filex/internal/buildinfo.BuildTime=${{ steps.inputs.outputs.build_time }}"
+
+          for w in a b; do
+            iso=$(mktemp -d)
+            mkdir -p "$iso/home" "$iso/tmp"
+            echo "workspace $w isolation root: $iso"
+            (
+              cd "$GITHUB_WORKSPACE/build-$w"
+              export HOME="$iso/home"
+              export TMPDIR="$iso/tmp"
+              export GOCACHE="$iso/gocache"
+              export GOMODCACHE="$iso/gomod"
+              export CGO_ENABLED=0
+              export GOFLAGS=-mod=readonly
+              go build -trimpath -buildvcs=false -ldflags "$ldflags" -o '${{ matrix.binary }}' ./cmd/filex
+            )
+          done
+
+      - name: Compare binary digests
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha_a=$(sha256sum "build-a/${{ matrix.binary }}" | cut -d' ' -f1)
+          sha_b=$(sha256sum "build-b/${{ matrix.binary }}" | cut -d' ' -f1)
+          echo "build-a: $sha_a"
+          echo "build-b: $sha_b"
+          if [ "$sha_a" != "$sha_b" ]; then
+            echo "::error::non-reproducible build for ${{ matrix.os }}: $sha_a != $sha_b"
+            exit 1
+          fi
+          echo "Reproducible on ${{ matrix.os }}"
