@@ -18,7 +18,7 @@ FileX 是一个 CLI 工具，把这些操作封装为确定性的 JSON 输出接
 
 ### Windows 安装器（推荐）
 
-从 [Releases](https://github.com/BaixuanZhu/FileX/releases) 下载 `filex-v<version>-windows-x64.exe`（如 `filex-v0.3.0-windows-x64.exe`）并运行。
+从 [Releases](https://github.com/BaixuanZhu/FileX/releases) 下载最新版本的 `.exe` 安装包并运行。
 
 安装器会：
 - 将 FileX 安装到 `%LOCALAPPDATA%\FileX`
@@ -27,12 +27,12 @@ FileX 是一个 CLI 工具，把这些操作封装为确定性的 JSON 输出接
 
 **静默安装：**
 ```cmd
-filex-v0.3.0-windows-x64.exe /S
+<installer>.exe /S
 ```
 
 **自定义目录：**
 ```cmd
-filex-v0.3.0-windows-x64.exe /D=D:\Tools\FileX
+<installer>.exe /D=D:\Tools\FileX
 ```
 
 **迁移已有安装：** 显式 `/D=` 会覆盖上一次的安装位置，但旧目录及其 PATH
